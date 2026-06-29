@@ -33,6 +33,24 @@ refund). **Finding: injection robustness is strongly model-dependent** — the
 same payloads that Claude Haiku shrugs off compromise GPT-4o-mini. Raw data:
 `reports/half_b_crossmodel.json`.
 
+## MART adaptive red-team (attacker-LLM, multi-round)
+
+Attacker = GPT-4o-mini, escalating payloads with past failures fed back. Goal =
+unauthorized refund, surface = tool. 3 rounds x 2 attempts. Raw:
+`reports/half_b_mart.json`.
+
+| Target | round 0 | round 1 | round 2 |
+|---|---|---|---|
+| GPT-4o-mini | 0% | **50%** | 0% |
+| Claude Haiku | 0% | 0% | 0% |
+
+- The adaptive attacker **found a landing unauthorized-refund injection against
+  GPT-4o-mini** within a few attempts (ASR is noisy at small N).
+- **Claude Haiku resisted all adaptive attempts** — robust even when the
+  attacker iterates on failures.
+- Note: Claude refuses to *act as the attacker* (declines to author injection
+  payloads), so GPT-4o-mini is used as the attacker model.
+
 ## Next
 
 1. **Adaptive red-team (attacker-LLM + MART loop):** an attacker model escalates

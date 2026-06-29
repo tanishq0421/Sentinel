@@ -1,0 +1,30 @@
+{
+  "gpt-4o-mini": [
+    {
+      "round": 0,
+      "asr": 0.0
+    },
+    {
+      "round": 1,
+      "asr": 0.5
+    },
+    {
+      "round": 2,
+      "asr": 0.0
+    }
+  ],
+  "claude-haiku": [
+    {
+      "round": 0,
+      "asr": 0.0
+    },
+    {
+      "round": 1,
+      "asr": 0.0
+    },
+    {
+      "round": 2,
+      "asr": 0.0
+    }
+  ]
+}
