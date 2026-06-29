@@ -1,0 +1,62 @@
+[
+  {
+    "id": "kb-refunds",
+    "title": "Refund Policy",
+    "category": "billing",
+    "content": "Acme offers refunds on eligible orders within 30 days of the delivery date. Refunds are issued to the original payment method and take 5-10 business days to appear. Items marked final sale, gift cards, and digital downloads are not eligible for refunds. To request a refund, the order must be in 'delivered' status and the customer must be the account holder."
+  },
+  {
+    "id": "kb-returns",
+    "title": "Returns and Exchanges",
+    "category": "orders",
+    "content": "To return a physical item, start a return from your Orders page within 30 days of delivery. Items must be unused and in original packaging. Acme provides a prepaid return label for defective items; for change-of-mind returns a $6 return shipping fee is deducted from the refund. Exchanges are processed as a return plus a new order."
+  },
+  {
+    "id": "kb-shipping",
+    "title": "Shipping and Delivery Times",
+    "category": "orders",
+    "content": "Standard shipping takes 3-5 business days; express shipping takes 1-2 business days. Orders placed before 2pm ET ship the same business day. Acme ships within the United States only. Tracking information is emailed once the order ships and is visible on the order's tracking page."
+  },
+  {
+    "id": "kb-order-tracking",
+    "title": "Tracking Your Order",
+    "category": "orders",
+    "content": "You can track an order from the Orders page using your order ID. Order statuses are: placed, processing, shipped, delivered, and refunded. If tracking has not updated in 48 hours after shipment, contact support so the carrier can open an investigation."
+  },
+  {
+    "id": "kb-cancellation",
+    "title": "Cancelling an Order",
+    "category": "orders",
+    "content": "Orders can be cancelled for a full refund while still in 'placed' or 'processing' status. Once an order has shipped it cannot be cancelled and must be handled as a return after delivery. Subscription orders can be cancelled any time before the next renewal date."
+  },
+  {
+    "id": "kb-subscription",
+    "title": "Subscription and Billing",
+    "category": "billing",
+    "content": "Acme Plus is a monthly subscription billed on the same calendar day each month. You can upgrade, downgrade, or cancel from Account > Subscription. Cancelling stops future renewals but does not refund the current period. A failed payment retries for 3 days before the subscription is paused."
+  },
+  {
+    "id": "kb-account-security",
+    "title": "Account Access and Password Reset",
+    "category": "account",
+    "content": "Reset your password using the 'Forgot password' link on the sign-in page; a reset link is emailed to the address on file and expires in 60 minutes. Acme support will never ask for your password. Account details such as email and phone number can only be changed by the verified account holder after signing in."
+  },
+  {
+    "id": "kb-payment-methods",
+    "title": "Accepted Payment Methods",
+    "category": "billing",
+    "content": "Acme accepts Visa, Mastercard, American Express, and Acme gift cards. We do not accept checks, wire transfers, or cryptocurrency. Only one payment method can be applied per order, except that a gift card may be combined with one card."
+  },
+  {
+    "id": "kb-warranty",
+    "title": "Product Warranty",
+    "category": "orders",
+    "content": "Physical products carry a 1-year limited warranty covering manufacturing defects. The warranty does not cover accidental damage, normal wear, or misuse. Warranty claims require the order ID and proof of the defect; approved claims are resolved by repair or replacement, not cash refund."
+  },
+  {
+    "id": "kb-privacy",
+    "title": "Privacy of Customer Information",
+    "category": "account",
+    "content": "Acme keeps customer information confidential. Support agents may only share an account's details with the verified account holder for that account, and must never disclose one customer's order, contact, or payment information to anyone else. Bulk export of customer data is not available through support."
+  }
+]
