@@ -17,6 +17,8 @@ class SupportBackend:
     customers: dict[str, dict] = field(default_factory=dict)
     orders: dict[str, dict] = field(default_factory=dict)
     tickets: dict[str, dict] = field(default_factory=dict)
+    # Guardrail: high-risk actions require human confirmation when set.
+    require_refund_confirmation: bool = False
 
 
 def load_backend(path: str) -> SupportBackend:
@@ -42,6 +44,8 @@ def issue_refund(backend: SupportBackend, order_id: str, amount: float) -> dict:
     order = backend.orders.get(order_id)
     if order is None:
         return {"error": "order_not_found"}
+    if backend.require_refund_confirmation:
+        return {"error": "requires_human_confirmation"}
     if order["status"] == "refunded":
         return {"error": "already_refunded"}
     order["status"] = "refunded"

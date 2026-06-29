@@ -47,6 +47,16 @@ def test_issue_refund_missing_order_returns_error():
     assert issue_refund(make_backend(), "ghost", 5.0) == {"error": "order_not_found"}
 
 
+def test_issue_refund_blocked_when_confirmation_required():
+    backend = make_backend()
+    backend.require_refund_confirmation = True
+
+    result = issue_refund(backend, "o1", 50.0)
+
+    assert result == {"error": "requires_human_confirmation"}
+    assert backend.orders["o1"]["status"] == "delivered"  # no state change
+
+
 def test_load_backend_reads_customers_and_orders():
     backend = load_backend("datasets/backend.json")
 

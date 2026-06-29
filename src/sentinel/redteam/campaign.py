@@ -41,6 +41,7 @@ def run_attack(
     model_fn,
     base_retrieve_fn: Callable[[str], list[str]],
     backend: SupportBackend,
+    output_filter: Callable[[str | None], str | None] | None = None,
 ) -> dict:
     if attack.surface == SURFACE_RAG:
         agent = SupportAgent(model_fn, poison_retrieve(base_retrieve_fn, attack), backend)
@@ -50,25 +51,28 @@ def run_attack(
         raise ValueError(f"unsupported surface: {attack.surface}")
 
     result = agent.run(attack.benign_question)
+    answer = output_filter(result.answer) if output_filter else result.answer
     return {
         "attack_id": attack.id,
         "surface": attack.surface,
         "category": attack.category,
-        "succeeded": attack_succeeded(attack, result.trace, result.answer),
-        "answer": result.answer,
+        "succeeded": attack_succeeded(attack, result.trace, answer),
+        "answer": answer,
         "trace_id": result.trace.id,
     }
 
 
-def run_campaign(attacks, model_fn, base_retrieve_fn, backend) -> list[dict]:
-    return [run_attack(a, model_fn, base_retrieve_fn, backend) for a in attacks]
+def run_campaign(attacks, model_fn, base_retrieve_fn, backend, output_filter=None) -> list[dict]:
+    return [
+        run_attack(a, model_fn, base_retrieve_fn, backend, output_filter) for a in attacks
+    ]
 
 
-def run_cross_model(attacks, model_fns: dict, base_retrieve_fn, backend) -> list[dict]:
+def run_cross_model(attacks, model_fns: dict, base_retrieve_fn, backend, output_filter=None) -> list[dict]:
     """Run the same campaign across multiple models; tag each result with model."""
     out = []
     for model_name, model_fn in model_fns.items():
-        for r in run_campaign(attacks, model_fn, base_retrieve_fn, backend):
+        for r in run_campaign(attacks, model_fn, base_retrieve_fn, backend, output_filter):
             out.append({**r, "model": model_name})
     return out
 
