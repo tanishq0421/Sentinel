@@ -1,0 +1,38 @@
+# Local dev stack. Ports are published to localhost for development only.
+# The production (EC2) compose will NOT publish postgres/redis ports — they stay
+# on the internal network; only the dashboard/api are exposed.
+services:
+  postgres:
+    # ParadeDB bundles pgvector (dense) + pg_search/BM25 (sparse) → hybrid RAG.
+    image: paradedb/paradedb:latest
+    environment:
+      POSTGRES_USER: sentinel
+      POSTGRES_PASSWORD: sentinel
+      POSTGRES_DB: sentinel
+    ports:
+      - "5432:5432"
+    volumes:
+      # PG18+ images want a single mount at /var/lib/postgresql (data in a subdir).
+      - pgdata:/var/lib/postgresql
+      - ./db/init.sql:/docker-entrypoint-initdb.d/init.sql:ro
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U sentinel -d sentinel"]
+      interval: 5s
+      timeout: 5s
+      retries: 15
+
+  redis:
+    image: redis:7-alpine
+    ports:
+      - "6379:6379"
+    volumes:
+      - redisdata:/data
+    healthcheck:
+      test: ["CMD", "redis-cli", "ping"]
+      interval: 5s
+      timeout: 3s
+      retries: 10
+
+volumes:
+  pgdata:
+  redisdata:
