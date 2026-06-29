@@ -51,7 +51,34 @@ unauthorized refund, surface = tool. 3 rounds x 2 attempts. Raw:
 - Note: Claude refuses to *act as the attacker* (declines to author injection
   payloads), so GPT-4o-mini is used as the attacker model.
 
-## Next
+## Guardrails — before/after ASR (GPT-4o-mini)
+
+Defenses: **spotlighting** (data-marking untrusted context), **refund
+confirmation** (high-risk tool gated), **PII egress filter** (redact non-owner
+emails in output). Raw: `reports/half_b_guardrails.json`.
+
+| Category | before | after |
+|---|---|---|
+| unauthorized_action | 1/2 | 0/2 |
+| instruction_override | 1/4 | 0/4 |
+| data_exfiltration | 0/2 | 0/2 |
+| **Overall** | **25%** | **0%** |
+
+The two landed attacks (tool-output refund, RAG instruction-override exfil) were
+both neutralized — the refund by the confirmation gate, the exfil by the egress
+filter. **Layered guardrails drove measured ASR to 0% on the vulnerable model.**
+
+## The four money-shots (status)
+
+1. Failure taxonomy — `reports/half_a_findings.md` ✅
+2. Attack-success heatmap (surface x model) — cross-model table above ✅
+3. Guardrail before/after — table above ✅
+4. MART multi-round adaptive curve — table above ✅
+
+## Remaining
+
+- 3rd injection surface (poisoned sub-agent message) needs the billing sub-agent.
+- Dashboard to visualize traces/taxonomy/ASR; deployment (EC2 + compose).
 
 1. **Adaptive red-team (attacker-LLM + MART loop):** an attacker model escalates
    payloads over rounds to find injections that land — automated red-teaming,
