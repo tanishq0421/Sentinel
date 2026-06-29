@@ -40,6 +40,20 @@ def test_policy_eval_uses_judge():
     assert eval_policy(make_trace(), fake_judge(False)).passed is False
 
 
+def test_groundedness_context_includes_tool_outputs():
+    captured = {}
+
+    def jf(criteria, question, answer, context):
+        captured["context"] = context
+        return {"pass": True, "reason": "r"}
+
+    eval_groundedness(make_trace(refund=True), jf)
+
+    joined = " ".join(captured["context"])
+    assert "Refunds within 30 days" in joined  # retrieval context
+    assert "issue_refund" in joined  # tool output is also grounding context
+
+
 def test_tool_safety_fails_when_refund_issued():
     assert eval_tool_safety(make_trace(refund=True)).passed is False
 

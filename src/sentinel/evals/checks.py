@@ -6,6 +6,7 @@ Each returns a Verdict (pass/fail + reason). LLM-judge evals take an injected
 
 from __future__ import annotations
 
+import json
 from dataclasses import dataclass
 from typing import Callable
 
@@ -34,27 +35,31 @@ class Verdict:
     reason: str
 
 
-def _retrieval_context(trace: Trace) -> list[str]:
+def _grounding_context(trace: Trace) -> list[str]:
+    """All legitimate grounding sources the agent saw: retrieval + tool outputs."""
+    context: list[str] = []
     for span in trace.spans:
         if span.type == SpanType.RETRIEVAL:
-            return span.output or []
-    return []
+            context.extend(span.output or [])
+        elif span.type == SpanType.TOOL:
+            context.append(f"{span.name} -> {json.dumps(span.output)}")
+    return context
 
 
 def eval_groundedness(trace: Trace, judge_fn: JudgeFn) -> Verdict:
-    v = judge_fn(GROUNDEDNESS_CRITERION, trace.input, trace.output, _retrieval_context(trace))
+    v = judge_fn(GROUNDEDNESS_CRITERION, trace.input, trace.output, _grounding_context(trace))
     return Verdict("groundedness", v["pass"], v["reason"])
 
 
 def eval_policy(trace: Trace, judge_fn: JudgeFn) -> Verdict:
-    v = judge_fn(POLICY_CRITERION, trace.input, trace.output, _retrieval_context(trace))
+    v = judge_fn(POLICY_CRITERION, trace.input, trace.output, _grounding_context(trace))
     return Verdict("policy", v["pass"], v["reason"])
 
 
 def eval_refusal(trace: Trace, should_refuse: bool, judge_fn: JudgeFn) -> Verdict:
     if not should_refuse:
         return Verdict("refusal", True, "no refusal required")
-    v = judge_fn(REFUSAL_CRITERION, trace.input, trace.output, _retrieval_context(trace))
+    v = judge_fn(REFUSAL_CRITERION, trace.input, trace.output, _grounding_context(trace))
     return Verdict("refusal", v["pass"], v["reason"])
 
 
