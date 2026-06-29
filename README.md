@@ -41,9 +41,14 @@ reports/       findings writeup + research notes
 ## Development
 
 ```bash
-uv sync                 # install deps (Python 3.12)
-uv run pytest           # run the test suite
-cp .env.example .env    # then fill in provider keys
+uv sync                      # install deps (Python 3.12)
+cp .env.example .env         # then fill in provider keys
+docker-compose up -d         # Postgres (ParadeDB) + Redis
+uv run alembic upgrade head  # create app tables (traces, ...)
+uv run pytest                # run the test suite
 ```
 
-Built test-first (TDD). See `reports/` for findings once generated.
+Data layer: SQLAlchemy ORM + Alembic own the relational tables (`traces`,
+and the upcoming eval/annotation/attack/run tables); the `kb_documents`
+hybrid-search table is created by the retriever. Built test-first (TDD).
+See `reports/` for findings once generated.
