@@ -64,6 +64,15 @@ def run_campaign(attacks, model_fn, base_retrieve_fn, backend) -> list[dict]:
     return [run_attack(a, model_fn, base_retrieve_fn, backend) for a in attacks]
 
 
+def run_cross_model(attacks, model_fns: dict, base_retrieve_fn, backend) -> list[dict]:
+    """Run the same campaign across multiple models; tag each result with model."""
+    out = []
+    for model_name, model_fn in model_fns.items():
+        for r in run_campaign(attacks, model_fn, base_retrieve_fn, backend):
+            out.append({**r, "model": model_name})
+    return out
+
+
 def asr_by(results: list[dict], key: str) -> dict[str, dict]:
     agg: dict[str, list[int]] = defaultdict(lambda: [0, 0])
     for r in results:
