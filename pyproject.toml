@@ -19,6 +19,9 @@ dependencies = [
     "redis>=8.0.1",
 ]
 
+[project.scripts]
+sentinel = "sentinel.cli:main"
+
 [dependency-groups]
 dev = [
     "httpx>=0.28.1",
