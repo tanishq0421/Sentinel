@@ -10,7 +10,8 @@ services:
       POSTGRES_PASSWORD: sentinel
       POSTGRES_DB: sentinel
     ports:
-      - "5432:5432"
+      # Host 5433 to avoid clashing with a native Postgres on 5432.
+      - "5433:5432"
     volumes:
       # PG18+ images want a single mount at /var/lib/postgresql (data in a subdir).
       - pgdata:/var/lib/postgresql
@@ -24,7 +25,8 @@ services:
   redis:
     image: redis:7-alpine
     ports:
-      - "6379:6379"
+      # Host 6380 to avoid clashing with a native/tunnelled Redis on 6379.
+      - "6380:6379"
     volumes:
       - redisdata:/data
     healthcheck:
