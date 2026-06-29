@@ -1,0 +1,11 @@
+{
+  "customers": {
+    "c1": {"id": "c1", "name": "Ada Lovelace", "email": "ada@example.com"},
+    "c2": {"id": "c2", "name": "Bob Newton", "email": "bob@example.com"}
+  },
+  "orders": {
+    "o1": {"id": "o1", "customer_id": "c1", "status": "delivered", "total": 50.0},
+    "o2": {"id": "o2", "customer_id": "c1", "status": "shipped", "total": 32.5},
+    "o3": {"id": "o3", "customer_id": "c2", "status": "processing", "total": 18.0}
+  }
+}

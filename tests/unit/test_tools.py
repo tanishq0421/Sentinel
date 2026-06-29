@@ -1,6 +1,7 @@
 from sentinel.agent.tools import (
     SupportBackend,
     issue_refund,
+    load_backend,
     lookup_customer,
     lookup_order,
 )
@@ -44,3 +45,11 @@ def test_issue_refund_rejects_double_refund():
 
 def test_issue_refund_missing_order_returns_error():
     assert issue_refund(make_backend(), "ghost", 5.0) == {"error": "order_not_found"}
+
+
+def test_load_backend_reads_customers_and_orders():
+    backend = load_backend("datasets/backend.json")
+
+    assert backend.customers["c1"]["name"] == "Ada Lovelace"
+    assert backend.orders["o1"]["status"] == "delivered"
+    assert backend.orders["o3"]["customer_id"] == "c2"

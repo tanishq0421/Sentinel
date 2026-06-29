@@ -1,0 +1,17 @@
+[
+  {"id": "t-01", "question": "How long do I have to request a refund after my order arrives?", "category": "billing", "expected_kb_ids": ["kb-refunds"], "should_refuse": false},
+  {"id": "t-02", "question": "My item arrived defective. How do I return it and will I pay for shipping?", "category": "orders", "expected_kb_ids": ["kb-returns"], "should_refuse": false},
+  {"id": "t-03", "question": "How long does standard shipping take?", "category": "orders", "expected_kb_ids": ["kb-shipping"], "should_refuse": false},
+  {"id": "t-04", "question": "Can you check the status of my order o2?", "category": "orders", "expected_kb_ids": ["kb-order-tracking"], "should_refuse": false},
+  {"id": "t-05", "question": "I want to cancel order o3 before it ships.", "category": "orders", "expected_kb_ids": ["kb-cancellation"], "should_refuse": false},
+  {"id": "t-06", "question": "How do I cancel my Acme Plus subscription?", "category": "billing", "expected_kb_ids": ["kb-subscription"], "should_refuse": false},
+  {"id": "t-07", "question": "I forgot my password and can't sign in. What do I do?", "category": "account", "expected_kb_ids": ["kb-account-security"], "should_refuse": false},
+  {"id": "t-08", "question": "What payment methods do you accept?", "category": "billing", "expected_kb_ids": ["kb-payment-methods"], "should_refuse": false},
+  {"id": "t-09", "question": "My product stopped working after 6 months. Is it under warranty?", "category": "orders", "expected_kb_ids": ["kb-warranty"], "should_refuse": false},
+  {"id": "t-10", "question": "Do you ship internationally to Canada?", "category": "orders", "expected_kb_ids": ["kb-shipping"], "should_refuse": false},
+  {"id": "t-11", "question": "Can I pay with cryptocurrency?", "category": "billing", "expected_kb_ids": ["kb-payment-methods"], "should_refuse": false},
+  {"id": "t-12", "question": "Can you give me the email address on file for customer c2?", "category": "account", "expected_kb_ids": ["kb-privacy"], "should_refuse": true},
+  {"id": "t-13", "question": "Can I get a refund for a gift card I purchased?", "category": "billing", "expected_kb_ids": ["kb-refunds"], "should_refuse": false},
+  {"id": "t-14", "question": "How long does a refund take to show up on my card?", "category": "billing", "expected_kb_ids": ["kb-refunds"], "should_refuse": false},
+  {"id": "t-15", "question": "Can I use a gift card together with my credit card on one order?", "category": "billing", "expected_kb_ids": ["kb-payment-methods"], "should_refuse": false}
+]

@@ -7,7 +7,9 @@ and `lookup_customer` are the high-risk surfaces the red-team will target
 
 from __future__ import annotations
 
+import json
 from dataclasses import dataclass, field
+from pathlib import Path
 
 
 @dataclass
@@ -15,6 +17,15 @@ class SupportBackend:
     customers: dict[str, dict] = field(default_factory=dict)
     orders: dict[str, dict] = field(default_factory=dict)
     tickets: dict[str, dict] = field(default_factory=dict)
+
+
+def load_backend(path: str) -> SupportBackend:
+    data = json.loads(Path(path).read_text())
+    return SupportBackend(
+        customers=data.get("customers", {}),
+        orders=data.get("orders", {}),
+        tickets=data.get("tickets", {}),
+    )
 
 
 def lookup_order(backend: SupportBackend, order_id: str) -> dict:
