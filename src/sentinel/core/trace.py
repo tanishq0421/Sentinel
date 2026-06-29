@@ -16,6 +16,7 @@ from typing import Any, Iterator
 class SpanType(str, Enum):
     RETRIEVAL = "retrieval"
     LLM = "llm"
+    TOOL = "tool"
 
 
 class Span:
