@@ -76,7 +76,7 @@ Full writeups: [reports/half_a_findings.md](reports/half_a_findings.md),
 
 ```bash
 cp .env.example .env     # add ANTHROPIC_API_KEY + OPENAI_API_KEY
-docker-compose -f docker-compose.full.yml -p sentinel-full up --build
+docker-compose up --build
 ```
 
 Then open **http://localhost:3000**. The API runs migrations + seeds the KB on
@@ -88,7 +88,7 @@ with `NEXT_PUBLIC_API_URL=http://<public-ip>:8000`.)
 ```bash
 uv sync
 cp .env.example .env                 # add keys
-docker-compose up -d                 # Postgres (ParadeDB) + Redis only
+docker-compose up -d postgres redis  # just the infra
 uv run alembic upgrade head          # create tables
 uv run sentinel seed                 # embed + index the KB
 uv run uvicorn sentinel.api.main:app --port 8000   # API

@@ -1,6 +1,12 @@
-# Local dev stack. Ports are published to localhost for development only.
-# The production (EC2) compose will NOT publish postgres/redis ports — they stay
-# on the internal network; only the dashboard/api are exposed.
+# Full stack: postgres (ParadeDB) + redis + api + worker + dashboard.
+# Requires a .env with ANTHROPIC_API_KEY and OPENAI_API_KEY.
+#
+#   docker-compose up --build            # whole stack -> http://localhost:3000
+#   docker-compose up -d postgres redis  # just infra (for `uv run` code-dev)
+#
+# Postgres/Redis are published on 5433/6380 for local tooling (tests, CLI).
+# For EC2: rebuild the dashboard with NEXT_PUBLIC_API_URL=http://<public-ip>:8000
+# and drop the postgres/redis port mappings.
 services:
   postgres:
     # ParadeDB bundles pgvector (dense) + pg_search/BM25 (sparse) → hybrid RAG.
@@ -10,8 +16,7 @@ services:
       POSTGRES_PASSWORD: sentinel
       POSTGRES_DB: sentinel
     ports:
-      # Host 5433 to avoid clashing with a native Postgres on 5432.
-      - "5433:5432"
+      - "5433:5432"  # host 5433 avoids clashing with a native Postgres
     volumes:
       # PG18+ images want a single mount at /var/lib/postgresql (data in a subdir).
       - pgdata:/var/lib/postgresql
@@ -20,13 +25,12 @@ services:
       test: ["CMD-SHELL", "pg_isready -U sentinel -d sentinel"]
       interval: 5s
       timeout: 5s
-      retries: 15
+      retries: 20
 
   redis:
     image: redis:7-alpine
     ports:
-      # Host 6380 to avoid clashing with a native/tunnelled Redis on 6379.
-      - "6380:6379"
+      - "6380:6379"  # host 6380 avoids clashing with a native/tunnelled Redis
     volumes:
       - redisdata:/data
     healthcheck:
@@ -34,6 +38,46 @@ services:
       interval: 5s
       timeout: 3s
       retries: 10
+
+  api:
+    build: .
+    env_file: .env
+    environment:
+      DATABASE_URL: postgresql://sentinel:sentinel@postgres:5432/sentinel
+      REDIS_URL: redis://redis:6379/0
+    command: >
+      sh -c "uv run alembic upgrade head &&
+             uv run sentinel seed &&
+             uv run uvicorn sentinel.api.main:app --host 0.0.0.0 --port 8000"
+    ports:
+      - "8000:8000"
+    depends_on:
+      postgres:
+        condition: service_healthy
+      redis:
+        condition: service_healthy
+
+  worker:
+    build: .
+    env_file: .env
+    environment:
+      DATABASE_URL: postgresql://sentinel:sentinel@postgres:5432/sentinel
+      REDIS_URL: redis://redis:6379/0
+    command: uv run python -m sentinel.worker.main
+    depends_on:
+      api:
+        condition: service_started
+
+  dashboard:
+    build:
+      context: ./dashboard
+      args:
+        NEXT_PUBLIC_API_URL: http://localhost:8000
+    ports:
+      - "3000:3000"
+    depends_on:
+      api:
+        condition: service_started
 
 volumes:
   pgdata:
