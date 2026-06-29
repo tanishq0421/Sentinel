@@ -47,43 +47,11 @@ def cmd_ask(args) -> None:
 
 
 def cmd_eval(_args) -> None:
-    from collections import defaultdict
+    from sentinel.evals.suite import run_eval_suite
 
-    from sentinel.agent.factory import build_support_agent
-    from sentinel.agent.tools import load_backend
-    from sentinel.core.pg_store import PostgresTraceStore
-    from sentinel.evals.generate import load_tickets
-    from sentinel.evals.judge import llm_judge
-    from sentinel.evals.runner import build_taxonomy, evaluate_trace
-
-    agent = build_support_agent(_dsn(), load_backend("datasets/backend.json"), table="kb_documents")
-    store = PostgresTraceStore(_dsn())
-    tickets = load_tickets("datasets/tickets.json")
-    judge = lambda c, q, a, ctx: llm_judge(c, q, a, ctx)  # noqa: E731
-
-    results = []
-    for t in tickets:
-        trace = agent.run(t["question"]).trace
-        store.save(trace)
-        results.append(evaluate_trace(trace, t, judge))
-
-    counts = defaultdict(lambda: [0, 0])
-    for r in results:
-        for v in r["verdicts"]:
-            counts[v.name][0] += 1 if v.passed else 0
-            counts[v.name][1] += 1
-    for name, (p, n) in counts.items():
-        print(f"  {name:14s}: {p}/{n}")
-    out = {
-        "pass_rates": {k: {"pass": v[0], "total": v[1]} for k, v in counts.items()},
-        "taxonomy": build_taxonomy(results),
-        "per_ticket": [
-            {"ticket_id": r["ticket_id"],
-             "verdicts": [{"name": v.name, "passed": v.passed, "reason": v.reason} for v in r["verdicts"]]}
-            for r in results
-        ],
-    }
-    json.dump(out, open("reports/half_a_eval.json", "w"), indent=2)
+    out = run_eval_suite(_dsn())
+    for name, r in out["pass_rates"].items():
+        print(f"  {name:14s}: {r['pass']}/{r['total']}")
     print("saved -> reports/half_a_eval.json")
 
 

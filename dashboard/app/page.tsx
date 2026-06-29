@@ -1,8 +1,9 @@
 "use client";
 
-import { useEffect, useState, type ReactNode, type CSSProperties } from "react";
+import { useEffect, useState, useCallback, type ReactNode, type CSSProperties } from "react";
 import { api } from "@/lib/api";
 import { Panel, PageHeader, Bar, asrColor } from "@/components/ui";
+import { RunControls } from "@/components/RunControls";
 
 type EvalData = {
   pass_rates: Record<string, { pass: number; total: number }>;
@@ -22,7 +23,7 @@ export default function Overview() {
   const [mart, setMart] = useState<Mart | null>(null);
   const [err, setErr] = useState<string | null>(null);
 
-  useEffect(() => {
+  const load = useCallback(() => {
     Promise.all([
       api.results<EvalData>("half_a_eval"),
       api.results<CrossModel>("half_b_crossmodel"),
@@ -38,10 +39,18 @@ export default function Overview() {
       .catch((e) => setErr(String(e)));
   }, []);
 
+  useEffect(() => {
+    load();
+  }, [load]);
+
   return (
     <div style={{ padding: "34px 40px", maxWidth: 1180 }}>
       <PageHeader title="Operations Overview" sub="sentinel // agent assurance" />
       {err && <ErrBox msg={err} />}
+
+      <div style={{ marginBottom: 14 }}>
+        <RunControls onDone={load} />
+      </div>
 
       <div style={{ display: "grid", gridTemplateColumns: "repeat(4, 1fr)", gap: 14, marginBottom: 14 }}>
         <Kpi label="Claude ASR" value={cross ? pct(cross.by_model["claude-haiku"]?.asr) : "—"} tone="ok" hint="robust" />
