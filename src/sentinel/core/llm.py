@@ -15,6 +15,8 @@ from tenacity import retry, stop_after_attempt, wait_exponential
 DEFAULT_AGENT_MODEL = "anthropic/claude-haiku-4-5-20251001"
 DEFAULT_ATTACKER_MODEL = "openai/gpt-4o-mini"
 DEFAULT_JUDGE_MODEL = "anthropic/claude-haiku-4-5-20251001"
+DEFAULT_EMBED_MODEL = "openai/text-embedding-3-small"
+EMBED_DIM = 1536
 
 
 @retry(
@@ -26,6 +28,17 @@ def complete(model: str, messages: list[dict], **kwargs) -> str:
     """Return the assistant text for a chat completion; retries transient errors."""
     response = litellm.completion(model=model, messages=messages, **kwargs)
     return response.choices[0].message.content
+
+
+@retry(
+    stop=stop_after_attempt(3),
+    wait=wait_exponential(multiplier=0.1, max=2),
+    reraise=True,
+)
+def embed(model: str, text: str, **kwargs) -> list[float]:
+    """Return the embedding vector for a single text; retries transient errors."""
+    response = litellm.embedding(model=model, input=text, **kwargs)
+    return response.data[0]["embedding"]
 
 
 @dataclass(frozen=True)

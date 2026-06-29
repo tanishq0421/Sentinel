@@ -1,6 +1,6 @@
 from types import SimpleNamespace
 
-from sentinel.core.llm import complete, model_panel
+from sentinel.core.llm import complete, embed, model_panel
 
 
 def _fake_response(text):
@@ -33,6 +33,18 @@ def test_complete_retries_on_transient_error_then_succeeds(mocker):
 
     assert out == "ok"
     assert m.call_count == 2
+
+
+def test_embed_returns_vector_and_passes_args(mocker):
+    fake = SimpleNamespace(data=[{"embedding": [0.1, 0.2, 0.3]}])
+    m = mocker.patch("sentinel.core.llm.litellm.embedding", return_value=fake)
+
+    out = embed("openai/text-embedding-3-small", "hello")
+
+    assert out == [0.1, 0.2, 0.3]
+    _, kwargs = m.call_args
+    assert kwargs["model"] == "openai/text-embedding-3-small"
+    assert kwargs["input"] == "hello"
 
 
 def test_model_panel_reads_agent_attacker_judge_from_env(monkeypatch):
