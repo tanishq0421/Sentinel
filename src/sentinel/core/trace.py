@@ -40,6 +40,14 @@ class Span:
             "duration_ms": self.duration_ms,
         }
 
+    @classmethod
+    def from_dict(cls, d: dict[str, Any]) -> "Span":
+        span = cls(name=d["name"], type=SpanType(d["type"]), input=d.get("input"))
+        span.id = d["id"]
+        span.output = d.get("output")
+        span.duration_ms = d.get("duration_ms")
+        return span
+
 
 class Trace:
     def __init__(self, name: str, input: Any = None) -> None:
@@ -62,6 +70,15 @@ class Trace:
             "duration_ms": self.duration_ms,
             "spans": [s.to_dict() for s in self.spans],
         }
+
+    @classmethod
+    def from_dict(cls, d: dict[str, Any]) -> "Trace":
+        trace = cls(name=d["name"], input=d.get("input"))
+        trace.id = d["id"]
+        trace.output = d.get("output")
+        trace.duration_ms = d.get("duration_ms")
+        trace.spans = [Span.from_dict(s) for s in d.get("spans", [])]
+        return trace
 
     @contextmanager
     def span(self, name: str, type: SpanType, input: Any = None) -> Iterator[Span]:

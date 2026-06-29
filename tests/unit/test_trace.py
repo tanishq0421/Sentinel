@@ -1,6 +1,6 @@
 import json
 
-from sentinel.core.trace import SpanType, Tracer
+from sentinel.core.trace import SpanType, Trace, Tracer
 
 
 def test_trace_records_spans_in_order_with_io():
@@ -55,3 +55,22 @@ def test_each_trace_has_a_unique_id():
     with tracer.trace(name="b") as b:
         pass
     assert a.id != b.id
+
+
+def test_trace_round_trips_through_dict():
+    with Tracer().trace(name="run", input={"q": "hi"}) as t:
+        with t.span("retrieval", SpanType.RETRIEVAL) as s:
+            s.set_output(["d1"])
+        t.set_output("ans")
+
+    restored = Trace.from_dict(t.to_dict())
+
+    assert restored.id == t.id
+    assert restored.name == t.name
+    assert restored.input == t.input
+    assert restored.output == t.output
+    assert restored.duration_ms == t.duration_ms
+    assert len(restored.spans) == 1
+    assert restored.spans[0].id == t.spans[0].id
+    assert restored.spans[0].type == SpanType.RETRIEVAL
+    assert restored.spans[0].output == ["d1"]
