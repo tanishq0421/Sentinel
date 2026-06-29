@@ -2,7 +2,7 @@
 
 Eval suite run over 15 support tickets through the real agent (Claude Haiku +
 OpenAI embeddings), judged by an LLM-as-judge (Claude Haiku). Raw data:
-`reports/half_a_eval.json`. (Exact counts shift slightly run-to-run due to LLM
+`reports/eval_summary.json`. (Exact counts shift slightly run-to-run due to LLM
 non-determinism; the t-05 finding is stable.)
 
 ## The eval-refinement loop (the headline)

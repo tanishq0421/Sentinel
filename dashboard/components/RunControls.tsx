@@ -47,6 +47,9 @@ export function RunControls({ onDone }: { onDone?: () => void }) {
         <button disabled={busy} onClick={() => run("redteam", "anthropic/claude-haiku-4-5-20251001")} style={btn("var(--ok)")} className="mono">
           run red-team · claude
         </button>
+        <button disabled={busy} onClick={() => run("redteam_suite")} style={btn("var(--warn)")} className="mono">
+          run full red-team suite
+        </button>
       </div>
       {job && (
         <div style={{ marginTop: 14, padding: 12, borderRadius: 8, border: "1px solid var(--border)", background: "var(--panel-2)" }}>

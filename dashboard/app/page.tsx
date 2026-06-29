@@ -25,10 +25,10 @@ export default function Overview() {
 
   const load = useCallback(() => {
     Promise.all([
-      api.results<EvalData>("half_a_eval"),
-      api.results<CrossModel>("half_b_crossmodel"),
-      api.results<Guardrails>("half_b_guardrails"),
-      api.results<Mart>("half_b_mart"),
+      api.results<EvalData>("eval_summary"),
+      api.results<CrossModel>("redteam_cross_model"),
+      api.results<Guardrails>("redteam_guardrails"),
+      api.results<Mart>("redteam_mart"),
     ])
       .then(([e, c, g, m]) => {
         setEvals(e);

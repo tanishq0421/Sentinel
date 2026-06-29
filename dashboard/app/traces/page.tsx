@@ -8,9 +8,13 @@ import { PageHeader, Panel } from "@/components/ui";
 export default function TracesPage() {
   const [traces, setTraces] = useState<TraceSummary[]>([]);
   const [err, setErr] = useState<string | null>(null);
+  const [loaded, setLoaded] = useState(false);
 
   useEffect(() => {
-    api.traces().then(setTraces).catch((e) => setErr(String(e)));
+    api.traces()
+      .then(setTraces)
+      .catch((e) => setErr(String(e)))
+      .finally(() => setLoaded(true));
   }, []);
 
   return (
@@ -28,6 +32,14 @@ export default function TracesPage() {
         >
           <span>id</span><span>input</span><span>output</span><span>spans</span><span>ms</span>
         </div>
+        {!loaded && (
+          <div className="mono" style={{ padding: 18, fontSize: 12, color: "var(--muted)" }}>loading…</div>
+        )}
+        {loaded && !err && traces.length === 0 && (
+          <div className="mono" style={{ padding: 18, fontSize: 12, color: "var(--muted)" }}>
+            no traces yet — run an eval from the Overview, or `uv run sentinel ask &quot;…&quot;`
+          </div>
+        )}
         {traces.map((t, i) => (
           <Link
             key={t.id}

@@ -21,7 +21,7 @@ def run_eval_suite(
     kb_table: str = "kb_documents",
     tickets_path: str = "datasets/tickets.json",
     backend_path: str = "datasets/backend.json",
-    out_path: str | None = "reports/half_a_eval.json",
+    out_path: str | None = "reports/eval_summary.json",
 ) -> dict:
     agent = build_support_agent(dsn, load_backend(backend_path), table=kb_table)
     store = PostgresTraceStore(dsn)

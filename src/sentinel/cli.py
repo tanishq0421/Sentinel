@@ -52,13 +52,20 @@ def cmd_eval(_args) -> None:
     out = run_eval_suite(_dsn())
     for name, r in out["pass_rates"].items():
         print(f"  {name:14s}: {r['pass']}/{r['total']}")
-    print("saved -> reports/half_a_eval.json")
+    print("saved -> reports/eval_summary.json")
 
 
 def cmd_redteam(args) -> None:
     from sentinel.worker.jobs import run_redteam_job
 
     print(json.dumps(run_redteam_job(model=args.model), indent=2))
+
+
+def cmd_redteam_suite(_args) -> None:
+    from sentinel.redteam.suite import run_redteam_suite
+
+    print(json.dumps(run_redteam_suite(_dsn()), indent=2))
+    print("saved -> reports/redteam_{cross_model,guardrails,mart}.json")
 
 
 def main() -> None:
@@ -77,6 +84,10 @@ def main() -> None:
     rt = sub.add_parser("redteam", help="run an injection campaign against a model")
     rt.add_argument("--model", default="openai/gpt-4o-mini")
     rt.set_defaults(func=cmd_redteam)
+
+    sub.add_parser(
+        "redteam-suite", help="regenerate cross-model + guardrails + MART reports"
+    ).set_defaults(func=cmd_redteam_suite)
 
     args = parser.parse_args()
     args.func(args)

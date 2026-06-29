@@ -15,10 +15,10 @@ Shipping LLM agents safely requires more than vibes. Sentinel is a working
 system that, for a reference customer-support agent (RAG + tools + a hybrid
 knowledge base):
 
-- **Half A — Evals.** Domain-specific binary evals (groundedness, policy
+- **Evaluation.** Domain-specific binary evals (groundedness, policy
   compliance, refusal, tool-safety) over real agent traces, error analysis, and
   a measured **failure taxonomy**. No generic BERTScore/ROUGE.
-- **Half B — Red-team.** Indirect prompt-injection attacks across two surfaces
+- **Red-teaming.** Indirect prompt-injection attacks across two surfaces
   (poisoned RAG doc, poisoned tool output), **cross-model** comparison, a
   **MART-style adaptive** attacker loop, and **guardrails** with measured
   before/after attack-success-rate (ASR).
@@ -65,8 +65,8 @@ Both halves run through one **trace** abstraction and surface in a dark
 | Guardrails before/after | GPT-4o-mini **25% → 0%** |
 | MART adaptive | landed on GPT-4o-mini; Claude robust across rounds |
 
-Full writeups: [reports/half_a_findings.md](reports/half_a_findings.md),
-[reports/half_b_findings.md](reports/half_b_findings.md).
+Full writeups: [reports/eval_findings.md](reports/eval_findings.md),
+[reports/redteam_findings.md](reports/redteam_findings.md).
 
 ---
 
@@ -120,7 +120,11 @@ uv run sentinel redteam --model openai/gpt-4o-mini   # run an injection campaign
 ## Tech stack
 
 LangGraph · LiteLLM (multi-provider) · Postgres/ParadeDB (pgvector + pg_search) ·
-SQLAlchemy + Alembic · FastAPI · Redis + RQ · Next.js · DeepEval/Langfuse-ready.
+SQLAlchemy + Alembic · FastAPI · Redis + RQ (Redis Queue) · Next.js.
+
+Evals and tracing are **custom-built** (custom `Trace` logger + LLM-as-judge),
+not DeepEval/Langfuse — see `reports/code_review.md` for the rationale and the
+optional path to wiring Langfuse later.
 
 ## Testing
 

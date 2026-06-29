@@ -14,7 +14,7 @@ def build(tmp_path):
             s.set_output(["chunk"])
         t.set_output("it shipped")
     traces.save(t)
-    (tmp_path / "half_a_eval.json").write_text(json.dumps({"pass_rates": {"groundedness": 13}}))
+    (tmp_path / "eval_summary.json").write_text(json.dumps({"pass_rates": {"groundedness": 13}}))
     app = create_app(traces, InMemoryAnnotationStore(), results_dir=str(tmp_path))
     return TestClient(app), t
 
@@ -50,7 +50,7 @@ def test_post_then_list_annotations(tmp_path):
 
 def test_results_endpoint_serves_json(tmp_path):
     client, _ = build(tmp_path)
-    assert client.get("/api/results/half_a_eval").json()["pass_rates"]["groundedness"] == 13
+    assert client.get("/api/results/eval_summary").json()["pass_rates"]["groundedness"] == 13
     assert client.get("/api/results/missing").status_code == 404
 
 

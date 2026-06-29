@@ -35,11 +35,22 @@ def run_redteam_job(model: str = "openai/gpt-4o-mini") -> dict:
 
 
 def run_eval_job() -> dict:
-    """Run the full eval suite; persist reports/half_a_eval.json; return pass rates."""
+    """Run the full eval suite; persist reports/eval_summary.json; return pass rates."""
     from sentinel.evals.suite import run_eval_suite
 
     out = run_eval_suite(os.environ["DATABASE_URL"])
     return {"pass_rates": out["pass_rates"], "failure_categories": list(out["taxonomy"].keys())}
 
 
-JOB_FUNCS = {"redteam": run_redteam_job, "eval": run_eval_job}
+def run_redteam_suite_job() -> dict:
+    """Regenerate cross-model + guardrails + MART reports; return a summary."""
+    from sentinel.redteam.suite import run_redteam_suite
+
+    return run_redteam_suite(os.environ["DATABASE_URL"])
+
+
+JOB_FUNCS = {
+    "redteam": run_redteam_job,
+    "eval": run_eval_job,
+    "redteam_suite": run_redteam_suite_job,
+}
