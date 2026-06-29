@@ -12,6 +12,7 @@ from fastapi import FastAPI, HTTPException
 from fastapi.middleware.cors import CORSMiddleware
 from pydantic import BaseModel
 
+from sentinel.core.jobs import JobQueue
 from sentinel.core.store import AnnotationStore, TraceStore
 
 
@@ -21,10 +22,16 @@ class AnnotationIn(BaseModel):
     note: str | None = None
 
 
+class RunIn(BaseModel):
+    type: str
+    model: str | None = None
+
+
 def create_app(
     trace_store: TraceStore,
     annotation_store: AnnotationStore,
     results_dir: str = "reports",
+    job_queue: JobQueue | None = None,
 ) -> FastAPI:
     app = FastAPI(title="Sentinel API")
     app.add_middleware(
@@ -74,5 +81,18 @@ def create_app(
         if not f.exists():
             raise HTTPException(status_code=404, detail="no such results")
         return json.loads(f.read_text())
+
+    @app.post("/api/runs")
+    def create_run(run: RunIn) -> dict:
+        if job_queue is None:
+            raise HTTPException(status_code=503, detail="job queue not configured")
+        kwargs = {"model": run.model} if run.model else {}
+        return {"job_id": job_queue.enqueue(run.type, **kwargs)}
+
+    @app.get("/api/runs/{job_id}")
+    def get_run(job_id: str) -> dict:
+        if job_queue is None:
+            raise HTTPException(status_code=503, detail="job queue not configured")
+        return job_queue.status(job_id)
 
     return app

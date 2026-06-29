@@ -11,6 +11,7 @@ from dotenv import load_dotenv
 
 from sentinel.api.app import create_app
 from sentinel.core.pg_store import PostgresAnnotationStore, PostgresTraceStore
+from sentinel.worker.queue import RQJobQueue
 
 load_dotenv()
 
@@ -20,4 +21,5 @@ app = create_app(
     PostgresTraceStore(_DSN),
     PostgresAnnotationStore(_DSN),
     results_dir="reports",
+    job_queue=RQJobQueue(),
 )

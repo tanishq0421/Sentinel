@@ -52,3 +52,18 @@ def test_results_endpoint_serves_json(tmp_path):
     client, _ = build(tmp_path)
     assert client.get("/api/results/half_a_eval").json()["pass_rates"]["groundedness"] == 13
     assert client.get("/api/results/missing").status_code == 404
+
+
+def test_runs_endpoint_enqueues_and_reports(tmp_path):
+    from sentinel.api.app import create_app
+    from sentinel.core.jobs import InMemoryJobQueue
+
+    queue = InMemoryJobQueue({"redteam": lambda model=None: {"asr": 0.25, "model": model}})
+    app = create_app(InMemoryTraceStore(), InMemoryAnnotationStore(), str(tmp_path), job_queue=queue)
+    client = TestClient(app)
+
+    job_id = client.post("/api/runs", json={"type": "redteam", "model": "gpt-4o-mini"}).json()["job_id"]
+    status = client.get(f"/api/runs/{job_id}").json()
+
+    assert status["status"] == "finished"
+    assert status["result"]["asr"] == 0.25
