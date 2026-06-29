@@ -6,7 +6,10 @@ import pytest
 from sentinel.core.pg_store import PostgresTraceStore
 from sentinel.core.trace import SpanType, Tracer
 
-DSN = os.getenv("DATABASE_URL", "postgresql://sentinel:sentinel@localhost:5433/sentinel")
+# A dedicated test DB so the DELETE-for-isolation never touches dev data.
+DSN = os.getenv(
+    "DATABASE_URL_TEST", "postgresql://sentinel:sentinel@localhost:5433/sentinel_test"
+)
 
 
 @pytest.fixture
