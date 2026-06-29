@@ -1,4 +1,4 @@
-from sentinel.core.store import InMemoryTraceStore
+from sentinel.core.store import InMemoryAnnotationStore, InMemoryTraceStore
 from sentinel.core.trace import Tracer
 
 
@@ -29,3 +29,15 @@ def test_in_memory_store_lists_saved_traces():
     store.save(b)
 
     assert store.list() == [a, b]
+
+
+def test_annotation_store_add_and_list_by_trace():
+    store = InMemoryAnnotationStore()
+    store.add("tr-1", "hallucination", "made up a number")
+    store.add("tr-2", "policy_violation")
+
+    a = store.add("tr-1", "tool_misuse")
+    assert a["id"]
+    assert a["trace_id"] == "tr-1"
+    assert {x["label"] for x in store.list("tr-1")} == {"hallucination", "tool_misuse"}
+    assert len(store.list()) == 3

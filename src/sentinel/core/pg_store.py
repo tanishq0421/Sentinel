@@ -9,7 +9,7 @@ from __future__ import annotations
 from sqlalchemy import select
 
 from sentinel.core.db import make_engine, make_session_factory
-from sentinel.core.models import TraceRow
+from sentinel.core.models import Annotation, TraceRow
 from sentinel.core.trace import Trace
 
 
@@ -58,3 +58,27 @@ class PostgresTraceStore:
                 "spans": row.spans or [],
             }
         )
+
+
+class PostgresAnnotationStore:
+    def __init__(self, dsn: str) -> None:
+        self.engine = make_engine(dsn)
+        self._session = make_session_factory(self.engine)
+
+    def add(self, trace_id: str, label: str, note: str | None = None) -> dict:
+        with self._session.begin() as session:
+            row = Annotation(trace_id=trace_id, label=label, note=note)
+            session.add(row)
+            session.flush()
+            return {"id": row.id, "trace_id": row.trace_id, "label": row.label, "note": row.note}
+
+    def list(self, trace_id: str | None = None) -> list[dict]:
+        query = select(Annotation)
+        if trace_id is not None:
+            query = query.where(Annotation.trace_id == trace_id)
+        with self._session() as session:
+            rows = session.execute(query.order_by(Annotation.id)).scalars().all()
+            return [
+                {"id": r.id, "trace_id": r.trace_id, "label": r.label, "note": r.note}
+                for r in rows
+            ]

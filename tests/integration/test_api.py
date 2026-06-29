@@ -1,0 +1,54 @@
+import json
+
+from fastapi.testclient import TestClient
+
+from sentinel.api.app import create_app
+from sentinel.core.store import InMemoryAnnotationStore, InMemoryTraceStore
+from sentinel.core.trace import SpanType, Tracer
+
+
+def build(tmp_path):
+    traces = InMemoryTraceStore()
+    with Tracer().trace(name="support_agent", input="where is my order?") as t:
+        with t.span("retrieve", SpanType.RETRIEVAL) as s:
+            s.set_output(["chunk"])
+        t.set_output("it shipped")
+    traces.save(t)
+    (tmp_path / "half_a_eval.json").write_text(json.dumps({"pass_rates": {"groundedness": 13}}))
+    app = create_app(traces, InMemoryAnnotationStore(), results_dir=str(tmp_path))
+    return TestClient(app), t
+
+
+def test_list_and_get_traces(tmp_path):
+    client, trace = build(tmp_path)
+
+    listed = client.get("/api/traces").json()
+    assert listed[0]["id"] == trace.id
+    assert listed[0]["span_count"] == 1
+
+    detail = client.get(f"/api/traces/{trace.id}").json()
+    assert detail["output"] == "it shipped"
+    assert detail["spans"][0]["type"] == "retrieval"
+
+
+def test_get_missing_trace_404(tmp_path):
+    client, _ = build(tmp_path)
+    assert client.get("/api/traces/nope").status_code == 404
+
+
+def test_post_then_list_annotations(tmp_path):
+    client, trace = build(tmp_path)
+
+    created = client.post(
+        "/api/annotations", json={"trace_id": trace.id, "label": "hallucination"}
+    ).json()
+    assert created["label"] == "hallucination"
+
+    listed = client.get(f"/api/annotations?trace_id={trace.id}").json()
+    assert len(listed) == 1
+
+
+def test_results_endpoint_serves_json(tmp_path):
+    client, _ = build(tmp_path)
+    assert client.get("/api/results/half_a_eval").json()["pass_rates"]["groundedness"] == 13
+    assert client.get("/api/results/missing").status_code == 404
