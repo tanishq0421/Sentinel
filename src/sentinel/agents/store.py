@@ -5,6 +5,7 @@ from __future__ import annotations
 from sqlalchemy import select
 
 from sentinel.agents.config import AgentConfig
+from sentinel.agents.profiles import EvalProfile, RedTeamProfile
 from sentinel.core.db import make_engine, make_session_factory
 from sentinel.core.models import Agent as AgentRow
 
@@ -23,6 +24,8 @@ class PostgresAgentStore:
                     system_prompt=cfg.system_prompt,
                     model=cfg.model,
                     guardrails=cfg.guardrails,
+                    eval_profile=cfg.eval_profile.to_dict(),
+                    redteam_profile=cfg.redteam_profile.to_dict(),
                     is_example=str(cfg.is_example).lower(),
                 )
             )
@@ -74,4 +77,6 @@ class PostgresAgentStore:
             model=row.model,
             guardrails=row.guardrails or {},
             is_example=(row.is_example == "true"),
+            eval_profile=EvalProfile.from_dict(row.eval_profile) if row.eval_profile else EvalProfile(),
+            redteam_profile=RedTeamProfile.from_dict(row.redteam_profile) if row.redteam_profile else RedTeamProfile(),
         )

@@ -11,6 +11,12 @@ import uuid
 from dataclasses import dataclass, field
 from typing import Protocol
 
+from sentinel.agents.profiles import (
+    DEFAULT_EVAL_PROFILE,
+    DEFAULT_REDTEAM_PROFILE,
+    EvalProfile,
+    RedTeamProfile,
+)
 from sentinel.core.llm import DEFAULT_AGENT_MODEL
 
 
@@ -26,6 +32,8 @@ class AgentConfig:
     guardrails: dict = field(default_factory=_default_guardrails)
     id: str = ""
     is_example: bool = False
+    eval_profile: EvalProfile = field(default_factory=EvalProfile)
+    redteam_profile: RedTeamProfile = field(default_factory=RedTeamProfile)
 
     def __post_init__(self) -> None:
         if not self.id:
@@ -39,6 +47,8 @@ class AgentConfig:
             "model": self.model,
             "guardrails": self.guardrails,
             "is_example": self.is_example,
+            "eval_profile": self.eval_profile.to_dict(),
+            "redteam_profile": self.redteam_profile.to_dict(),
         }
 
 
