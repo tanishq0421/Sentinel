@@ -96,6 +96,11 @@ uv run python -m sentinel.worker.main              # worker (separate shell)
 cd dashboard && npm install && npm run dev          # dashboard
 ```
 
+> Run **one** worker per Redis. Don't run a host worker (`-m sentinel.worker.main`)
+> while the Docker stack is up — both consume the same queue, and a stale
+> long-running worker (old cached code) will fail jobs it doesn't recognize.
+> Restart workers after changing `worker/jobs.py`.
+
 ## Using the dashboard
 
 - **Playground** — **create an agent** (name + system prompt + paste a knowledge
