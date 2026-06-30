@@ -27,8 +27,8 @@ def openai_embedder(text: str) -> list[float]:
     return embed(DEFAULT_EMBED_MODEL, text)
 
 
-def seed_kb(retriever: HybridRetriever, path: str) -> int:
-    """Embed and index every KB article; returns the number indexed."""
+def seed_kb(retriever: HybridRetriever, path: str, agent_id: str = "acme") -> int:
+    """Embed and index every KB article under an agent's namespace; returns count."""
     docs = load_kb_articles(path)
-    retriever.index(docs)
+    retriever.index(docs, agent_id=agent_id)
     return len(docs)

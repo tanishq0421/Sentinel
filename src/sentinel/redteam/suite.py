@@ -32,7 +32,7 @@ def _write(reports_dir: str, name: str, obj: dict) -> None:
 def run_redteam_suite(dsn: str, reports_dir: str = "reports") -> dict:
     backend_path = "datasets/backend.json"
     retriever = HybridRetriever(dsn, embed_fn=openai_embedder, dim=EMBED_DIM, table="kb_documents")
-    base_retrieve = lambda q: [d.content for d in retriever.search(q, k=4)]  # noqa: E731
+    base_retrieve = lambda q: [d.content for d in retriever.search(q, k=4, agent_id="acme")]  # noqa: E731
     backend = load_backend(backend_path)
     attacks = default_attacks()
 

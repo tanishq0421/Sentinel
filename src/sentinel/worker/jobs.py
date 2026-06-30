@@ -21,7 +21,7 @@ def run_redteam_job(model: str = "openai/gpt-4o-mini") -> dict:
     dsn = os.environ["DATABASE_URL"]
     backend = load_backend("datasets/backend.json")
     retriever = HybridRetriever(dsn, embed_fn=openai_embedder, dim=EMBED_DIM, table="kb_documents")
-    base_retrieve = lambda q: [d.content for d in retriever.search(q, k=4)]  # noqa: E731
+    base_retrieve = lambda q: [d.content for d in retriever.search(q, k=4, agent_id="acme")]  # noqa: E731
 
     results = run_campaign(default_attacks(), litellm_model_fn(model), base_retrieve, backend)
     successes = sum(r["succeeded"] for r in results)

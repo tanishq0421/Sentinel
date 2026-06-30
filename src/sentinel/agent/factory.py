@@ -32,11 +32,12 @@ def build_support_agent(
     backend: SupportBackend,
     model: str = DEFAULT_AGENT_MODEL,
     table: str = "kb_documents",
+    agent_id: str = "acme",
 ) -> SupportAgent:
     retriever = HybridRetriever(dsn, embed_fn=openai_embedder, dim=EMBED_DIM, table=table)
 
     def retrieve_fn(question: str) -> list[str]:
-        return [doc.content for doc in retriever.search(question, k=4)]
+        return [doc.content for doc in retriever.search(question, k=4, agent_id=agent_id)]
 
     return SupportAgent(
         model_fn=litellm_model_fn(model),

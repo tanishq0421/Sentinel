@@ -62,42 +62,53 @@ class HybridRetriever:
         with psycopg.connect(self.dsn) as conn:
             conn.execute(
                 f"CREATE TABLE IF NOT EXISTS {self.table} "
-                f"(id TEXT PRIMARY KEY, content TEXT NOT NULL, embedding vector({self.dim}))"
+                f"(id TEXT PRIMARY KEY, content TEXT NOT NULL, "
+                f"agent_id TEXT NOT NULL DEFAULT 'default', embedding vector({self.dim}))"
+            )
+            # Per-agent KB isolation: agent_id scopes every retrieval.
+            conn.execute(
+                f"ALTER TABLE {self.table} ADD COLUMN IF NOT EXISTS "
+                f"agent_id TEXT NOT NULL DEFAULT 'default'"
             )
             conn.execute(
                 f"CREATE INDEX IF NOT EXISTS {self.table}_bm25 ON {self.table} "
                 f"USING bm25 (id, content) WITH (key_field='id')"
             )
+            conn.execute(
+                f"CREATE INDEX IF NOT EXISTS {self.table}_agent ON {self.table} (agent_id)"
+            )
 
-    def index(self, docs: list[Document]) -> None:
+    def index(self, docs: list[Document], agent_id: str = "default") -> None:
         with psycopg.connect(self.dsn) as conn:
             for doc in docs:
                 conn.execute(
-                    f"INSERT INTO {self.table} (id, content, embedding) "
-                    f"VALUES (%s, %s, %s::vector) "
+                    f"INSERT INTO {self.table} (id, content, agent_id, embedding) "
+                    f"VALUES (%s, %s, %s, %s::vector) "
                     f"ON CONFLICT (id) DO UPDATE SET "
-                    f"content = EXCLUDED.content, embedding = EXCLUDED.embedding",
-                    (doc.id, doc.content, _vector_literal(self.embed_fn(doc.content))),
+                    f"content = EXCLUDED.content, agent_id = EXCLUDED.agent_id, "
+                    f"embedding = EXCLUDED.embedding",
+                    (doc.id, doc.content, agent_id, _vector_literal(self.embed_fn(doc.content))),
                 )
 
-    def search(self, query: str, k: int = 5) -> list[Document]:
+    def search(self, query: str, k: int = 5, agent_id: str = "default") -> list[Document]:
         query_vec = _vector_literal(self.embed_fn(query))
         pool = max(k * 4, 10)
         with psycopg.connect(self.dsn) as conn:
             dense = [
                 r[0]
                 for r in conn.execute(
-                    f"SELECT id FROM {self.table} ORDER BY embedding <=> %s::vector LIMIT %s",
-                    (query_vec, pool),
+                    f"SELECT id FROM {self.table} WHERE agent_id = %s "
+                    f"ORDER BY embedding <=> %s::vector LIMIT %s",
+                    (agent_id, query_vec, pool),
                 ).fetchall()
             ]
             sparse = [
                 r[0]
                 for r in conn.execute(
                     f"SELECT id FROM {self.table} "
-                    f"WHERE id @@@ paradedb.match('content', %s) "
+                    f"WHERE id @@@ paradedb.match('content', %s) AND agent_id = %s "
                     f"ORDER BY paradedb.score(id) DESC LIMIT %s",
-                    (query, pool),
+                    (query, agent_id, pool),
                 ).fetchall()
             ]
             fused = reciprocal_rank_fusion([dense, sparse])[:k]

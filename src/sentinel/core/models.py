@@ -26,6 +26,21 @@ class TraceRow(Base):
     )
 
 
+class Agent(Base):
+    """A playground-configured agent: prompt + guardrails (KB is keyed by id)."""
+
+    __tablename__ = "agents"
+
+    id: Mapped[str] = mapped_column(String, primary_key=True)
+    name: Mapped[str] = mapped_column(String, nullable=False)
+    system_prompt: Mapped[str] = mapped_column(Text, nullable=False)
+    model: Mapped[str] = mapped_column(String, nullable=False)
+    guardrails: Mapped[Any] = mapped_column(JSONB, nullable=False, default=dict)
+    created_at: Mapped[datetime] = mapped_column(
+        DateTime(timezone=True), server_default=func.now(), nullable=False
+    )
+
+
 class Annotation(Base):
     """A human failure-taxonomy label attached to a trace (the annotation tool)."""
 
