@@ -41,7 +41,7 @@ export function Sidebar() {
         </span>
       </div>
       <div className="label" style={{ marginLeft: 22, marginBottom: 28, fontSize: 9 }}>
-        eval · red-team console
+        agent behavior · security analysis
       </div>
 
       <nav style={{ display: "flex", flexDirection: "column", gap: 4 }}>

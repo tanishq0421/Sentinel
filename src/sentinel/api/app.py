@@ -58,6 +58,17 @@ def create_app(
     )
     results_path = Path(results_dir)
 
+    def _run_summary(run) -> str:
+        if run.kind == "eval":
+            g = run.result.get("groundedness", {})
+            if g:
+                return f"{g.get('pass', 0)}/{g.get('total', 0)} grounded"
+        elif run.kind == "redteam":
+            asr = run.result.get("asr")
+            if asr is not None:
+                return f"ASR {round(asr * 100)}% — {'vulnerable' if run.result.get('vulnerable') else 'robust'}"
+        return run.kind
+
     @app.get("/api/health")
     def health() -> dict:
         return {"status": "ok"}
@@ -143,6 +154,56 @@ def create_app(
         if run is None:
             raise HTTPException(status_code=404, detail="no runs yet")
         return run.to_dict()
+
+    @app.get("/api/stats")
+    def platform_stats() -> dict:
+        """Live platform-wide aggregates — powers the Overview page."""
+        if agent_store is None or run_store is None:
+            raise HTTPException(status_code=503, detail="stores not configured")
+        agents = agent_store.list()
+        recent = run_store.list_recent(limit=20)
+
+        # build name lookup for recent feed
+        agent_names = {a.id: a.name for a in agents}
+
+        eval_runs, rt_runs = [], []
+        for a in agents:
+            ev = run_store.latest(a.id, "eval")
+            rt = run_store.latest(a.id, "redteam")
+            if ev:
+                eval_runs.append(ev)
+            if rt:
+                rt_runs.append(rt)
+
+        # aggregate groundedness across all agents
+        total_pass = total_cases = 0
+        for r in eval_runs:
+            g = r.result.get("groundedness", {})
+            total_pass += g.get("pass", 0)
+            total_cases += g.get("total", 0)
+
+        asrs = [r.result.get("asr", 0) for r in rt_runs]
+        vulnerable_count = sum(1 for r in rt_runs if r.result.get("vulnerable", False))
+
+        return {
+            "total_agents": len(agents),
+            "agents_evaled": len(eval_runs),
+            "agents_redteamed": len(rt_runs),
+            "avg_groundedness": round(total_pass / total_cases, 3) if total_cases else None,
+            "avg_asr": round(sum(asrs) / len(asrs), 3) if asrs else None,
+            "vulnerable_agents": vulnerable_count,
+            "recent_runs": [
+                {
+                    "id": r.id,
+                    "agent_id": r.agent_id,
+                    "agent_name": agent_names.get(r.agent_id, r.agent_id[:8]),
+                    "kind": r.kind,
+                    "created_at": r.created_at.isoformat(),
+                    "summary": _run_summary(r),
+                }
+                for r in recent
+            ],
+        }
 
     @app.get("/api/compare")
     def compare_agents(kind: str = "eval") -> dict:

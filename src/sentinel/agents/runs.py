@@ -54,6 +54,7 @@ class AgentRunStore:
     def create(self, agent_id: str, kind: str, result: dict) -> AgentRun: ...
     def get(self, run_id: str) -> AgentRun | None: ...
     def list(self, agent_id: str) -> list[AgentRun]: ...
+    def list_recent(self, limit: int = 20) -> list[AgentRun]: ...
     def latest(self, agent_id: str, kind: str) -> AgentRun | None: ...
     def compare(self, agent_ids: list[str], kind: str) -> dict[str, dict]: ...
 
@@ -74,6 +75,9 @@ class InMemoryAgentRunStore(AgentRunStore):
 
     def list(self, agent_id: str) -> list[AgentRun]:
         return [r for r in self._runs.values() if r.agent_id == agent_id]
+
+    def list_recent(self, limit: int = 20) -> list[AgentRun]:
+        return sorted(self._runs.values(), key=lambda r: r.created_at, reverse=True)[:limit]
 
     def latest(self, agent_id: str, kind: str) -> AgentRun | None:
         candidates = [r for r in self._runs.values() if r.agent_id == agent_id and r.kind == kind]
@@ -117,6 +121,11 @@ class PostgresAgentRunStore(AgentRunStore):
         with self._session() as s:
             rows = s.query(AgentRunRow).filter_by(agent_id=agent_id)\
                     .order_by(AgentRunRow.created_at.desc()).all()
+            return [self._row_to_domain(r) for r in rows]
+
+    def list_recent(self, limit: int = 20) -> list[AgentRun]:
+        with self._session() as s:
+            rows = s.query(AgentRunRow).order_by(AgentRunRow.created_at.desc()).limit(limit).all()
             return [self._row_to_domain(r) for r in rows]
 
     def latest(self, agent_id: str, kind: str) -> AgentRun | None:
