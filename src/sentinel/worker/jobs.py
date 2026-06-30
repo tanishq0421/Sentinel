@@ -49,8 +49,30 @@ def run_redteam_suite_job() -> dict:
     return run_redteam_suite(os.environ["DATABASE_URL"])
 
 
+def run_pg_eval_job(agent_id: str) -> dict:
+    """Eval a playground-configured agent (groundedness over KB-derived questions)."""
+    from sentinel.agents.store import PostgresAgentStore
+    from sentinel.playground.engine import run_playground_eval
+
+    dsn = os.environ["DATABASE_URL"]
+    cfg = PostgresAgentStore(dsn).get(agent_id)
+    return run_playground_eval(dsn, cfg)
+
+
+def run_pg_redteam_job(agent_id: str) -> dict:
+    """Red-team a playground-configured agent (canary injection + guardrail rec)."""
+    from sentinel.agents.store import PostgresAgentStore
+    from sentinel.playground.engine import run_playground_redteam
+
+    dsn = os.environ["DATABASE_URL"]
+    cfg = PostgresAgentStore(dsn).get(agent_id)
+    return run_playground_redteam(dsn, cfg)
+
+
 JOB_FUNCS = {
     "redteam": run_redteam_job,
     "eval": run_eval_job,
     "redteam_suite": run_redteam_suite_job,
+    "pg_eval": run_pg_eval_job,
+    "pg_redteam": run_pg_redteam_job,
 }

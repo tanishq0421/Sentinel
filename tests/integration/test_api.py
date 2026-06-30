@@ -54,6 +54,29 @@ def test_results_endpoint_serves_json(tmp_path):
     assert client.get("/api/results/missing").status_code == 404
 
 
+def test_agents_crud_and_kb_ingest(tmp_path):
+    from sentinel.agents.config import InMemoryAgentStore
+    from sentinel.api.app import create_app
+
+    app = create_app(
+        InMemoryTraceStore(), InMemoryAnnotationStore(), str(tmp_path),
+        agent_store=InMemoryAgentStore(),
+        ingest_fn=lambda agent_id, text: len(text.split()),
+    )
+    client = TestClient(app)
+
+    created = client.post(
+        "/api/agents",
+        json={"name": "Bot", "system_prompt": "be nice", "guardrails": {"spotlight": True, "pii_egress": False}},
+    ).json()
+    assert created["id"]
+    assert created["guardrails"]["spotlight"] is True
+
+    assert client.get("/api/agents").json()[0]["name"] == "Bot"
+    assert client.get(f"/api/agents/{created['id']}").json()["system_prompt"] == "be nice"
+    assert client.post(f"/api/agents/{created['id']}/kb", json={"text": "one two three"}).json()["chunks"] == 3
+
+
 def test_runs_endpoint_enqueues_and_reports(tmp_path):
     from sentinel.api.app import create_app
     from sentinel.core.jobs import InMemoryJobQueue

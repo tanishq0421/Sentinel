@@ -90,6 +90,14 @@ class HybridRetriever:
                     (doc.id, doc.content, agent_id, _vector_literal(self.embed_fn(doc.content))),
                 )
 
+    def documents(self, agent_id: str) -> list[Document]:
+        with psycopg.connect(self.dsn) as conn:
+            rows = conn.execute(
+                f"SELECT id, content FROM {self.table} WHERE agent_id = %s ORDER BY id",
+                (agent_id,),
+            ).fetchall()
+        return [Document(id=r[0], content=r[1]) for r in rows]
+
     def search(self, query: str, k: int = 5, agent_id: str = "default") -> list[Document]:
         query_vec = _vector_literal(self.embed_fn(query))
         pool = max(k * 4, 10)

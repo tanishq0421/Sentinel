@@ -100,10 +100,13 @@ class SupportAgent:
         retrieve_fn: Callable[[str], list[str]],
         backend: SupportBackend,
         system_prompt: str = DEFAULT_SYSTEM_PROMPT,
+        enable_tools: bool = True,
     ) -> None:
         self.model_fn = model_fn
         self.retrieve_fn = retrieve_fn
-        self.tools = _tool_registry(backend)
+        # RAG-only agents (the playground default) run with no tools.
+        self.tools = _tool_registry(backend) if enable_tools else {}
+        self.tool_specs = TOOL_SPECS if enable_tools else []
         self.system_prompt = system_prompt
         self._graph = self._build()
 
@@ -135,7 +138,7 @@ class SupportAgent:
     def _agent_node(self, state: AgentState) -> dict:
         trace = state["trace"]
         with trace.span("llm", SpanType.LLM) as span:
-            message = self.model_fn(state["messages"], TOOL_SPECS)
+            message = self.model_fn(state["messages"], self.tool_specs)
             span.set_output(message)
         return {
             "messages": state["messages"] + [message],

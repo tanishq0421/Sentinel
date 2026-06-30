@@ -12,6 +12,7 @@ from fastapi import FastAPI, HTTPException
 from fastapi.middleware.cors import CORSMiddleware
 from pydantic import BaseModel
 
+from sentinel.agents.config import AgentConfig
 from sentinel.core.jobs import JobQueue
 from sentinel.core.store import AnnotationStore, TraceStore
 
@@ -25,6 +26,18 @@ class AnnotationIn(BaseModel):
 class RunIn(BaseModel):
     type: str
     model: str | None = None
+    agent_id: str | None = None
+
+
+class AgentIn(BaseModel):
+    name: str
+    system_prompt: str
+    model: str | None = None
+    guardrails: dict | None = None
+
+
+class KbIn(BaseModel):
+    text: str
 
 
 def create_app(
@@ -32,6 +45,8 @@ def create_app(
     annotation_store: AnnotationStore,
     results_dir: str = "reports",
     job_queue: JobQueue | None = None,
+    agent_store=None,
+    ingest_fn=None,
 ) -> FastAPI:
     app = FastAPI(title="Sentinel API")
     app.add_middleware(
@@ -82,11 +97,46 @@ def create_app(
             raise HTTPException(status_code=404, detail="no such results")
         return json.loads(f.read_text())
 
+    @app.post("/api/agents")
+    def create_agent(body: AgentIn) -> dict:
+        if agent_store is None:
+            raise HTTPException(status_code=503, detail="agent store not configured")
+        cfg = AgentConfig(
+            name=body.name,
+            system_prompt=body.system_prompt,
+            **({"model": body.model} if body.model else {}),
+            **({"guardrails": body.guardrails} if body.guardrails else {}),
+        )
+        return agent_store.create(cfg).to_dict()
+
+    @app.get("/api/agents")
+    def list_agents() -> list[dict]:
+        if agent_store is None:
+            raise HTTPException(status_code=503, detail="agent store not configured")
+        return [a.to_dict() for a in agent_store.list()]
+
+    @app.get("/api/agents/{agent_id}")
+    def get_agent(agent_id: str) -> dict:
+        cfg = agent_store.get(agent_id) if agent_store else None
+        if cfg is None:
+            raise HTTPException(status_code=404, detail="agent not found")
+        return cfg.to_dict()
+
+    @app.post("/api/agents/{agent_id}/kb")
+    def ingest_agent_kb(agent_id: str, body: KbIn) -> dict:
+        if ingest_fn is None:
+            raise HTTPException(status_code=503, detail="ingest not configured")
+        return {"chunks": ingest_fn(agent_id, body.text)}
+
     @app.post("/api/runs")
     def create_run(run: RunIn) -> dict:
         if job_queue is None:
             raise HTTPException(status_code=503, detail="job queue not configured")
-        kwargs = {"model": run.model} if run.model else {}
+        kwargs: dict = {}
+        if run.model:
+            kwargs["model"] = run.model
+        if run.agent_id:
+            kwargs["agent_id"] = run.agent_id
         return {"job_id": job_queue.enqueue(run.type, **kwargs)}
 
     @app.get("/api/runs/{job_id}")
