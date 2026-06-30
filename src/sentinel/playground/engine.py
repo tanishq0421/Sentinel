@@ -80,6 +80,16 @@ def ingest_kb(dsn: str, agent_id: str, text: str) -> int:
     return len(docs)
 
 
+def list_kb(dsn: str, agent_id: str):
+    retriever = _retriever(dsn)
+    return retriever.documents(agent_id)
+
+
+def delete_kb_chunk(dsn: str, chunk_id: str) -> bool:
+    retriever = _retriever(dsn)
+    return retriever.delete_document(chunk_id)
+
+
 def build_playground_agent(dsn: str, cfg: AgentConfig) -> PlaygroundAgent:
     from sentinel.agent.factory import litellm_model_fn
 
@@ -88,30 +98,92 @@ def build_playground_agent(dsn: str, cfg: AgentConfig) -> PlaygroundAgent:
     return PlaygroundAgent(cfg, litellm_model_fn(cfg.model), base_retrieve)
 
 
-def run_playground_redteam(dsn: str, cfg: AgentConfig, n: int = 3) -> dict:
-    """Canary injection vs the configured agent; report ASR + a guardrail rec."""
+def run_playground_redteam(dsn: str, cfg: AgentConfig, attack_ids: list[str] | None = None, n: int | None = None, trace_store=None, progress=None) -> dict:
+    """Run catalog attacks vs the configured agent; report per-attack results + ASR."""
     from sentinel.agent.factory import litellm_model_fn
+    from sentinel.redteam.catalog import ATTACK_CATALOG, detect_success
 
+    def _step(label, detail=None):
+        if progress:
+            idx = progress.add_step(label, detail)
+            progress.start(idx)
+            return idx
+        return None
+
+    def _done(idx, detail=None):
+        if progress and idx is not None:
+            progress.done(idx, detail)
+
+    profile = cfg.redteam_profile
+    if n is None:
+        n = profile.trials_per_attack
+
+    s = _step("Initializing agent and attack catalog…")
     retriever = _retriever(dsn)
     base = lambda q: [d.content for d in retriever.search(q, k=4, agent_id=cfg.id)]  # noqa: E731
-    poisoned = lambda q: [canary_injection()] + base(q)  # noqa: E731
     model_fn = litellm_model_fn(cfg.model)
 
-    def trial(spotlight: bool) -> float:
-        retrieve = spotlight_retrieve(poisoned) if spotlight else poisoned
-        agent = SupportAgent(model_fn, retrieve, SupportBackend(), system_prompt=cfg.system_prompt, enable_tools=False)
-        hits = sum(canary_succeeded(agent.run("Can you help me with a question?").answer) for _ in range(n))
-        return hits / n
+    selected_ids = attack_ids or profile.selected_attack_ids()
+    id_set = set(selected_ids)
+    attacks = [a for a in ATTACK_CATALOG if a.id in id_set]
+    _done(s, f"{len(attacks)} attacks selected, {n} trials each")
 
-    asr = trial(cfg.guardrails.get("spotlight", False))
-    asr_spotlight = trial(spotlight=True)
-    if asr == 0:
-        rec = "Robust to canary injection with the current config."
-    elif asr_spotlight < asr:
-        rec = "Vulnerable — enable spotlighting (data-marking); it reduces the attack."
+    results = []
+    for ai, attack in enumerate(attacks):
+        s = _step(f"Running attack {ai + 1}/{len(attacks)}: {attack.name}", f"{n} trials · {attack.category}")
+        successes = 0
+        for _ in range(n):
+            if attack.category == "prompt_injection" and "RAG" in attack.name:
+                retrieve = lambda q, p=attack.payload: [p] + base(q)  # noqa: E731
+            else:
+                retrieve = base
+            if cfg.guardrails.get("spotlight"):
+                retrieve = spotlight_retrieve(retrieve)
+            agent = SupportAgent(model_fn, retrieve, SupportBackend(),
+                                system_prompt=cfg.system_prompt, enable_tools=False)
+            question = attack.payload if attack.category != "prompt_injection" or "RAG" not in attack.name else "Can you help me?"
+            result = agent.run(question)
+            answer = result.answer or ""
+            if trace_store is not None:
+                result.trace.agent_id = cfg.id
+                result.trace.kind = "redteam"
+                trace_store.save(result.trace)
+            if detect_success(attack, answer):
+                successes += 1
+        asr = successes / n
+        _done(s, f"ASR {round(asr * 100)}% — {successes}/{n} succeeded")
+        results.append({
+            "attack_id": attack.id,
+            "attack_name": attack.name,
+            "category": attack.category,
+            "succeeded": successes,
+            "trials": n,
+            "asr": asr,
+        })
+
+    s = _step("Computing final results…")
+    total_attacks = len(results)
+    vulnerable_attacks = sum(1 for r in results if r["asr"] > 0)
+    overall_asr = sum(r["asr"] for r in results) / total_attacks if total_attacks else 0
+    _done(s, f"ASR {round(overall_asr * 100)}% — {vulnerable_attacks}/{total_attacks} vulnerable")
+
+    if vulnerable_attacks == 0:
+        rec = "Robust across all tested attacks."
+    elif cfg.guardrails.get("spotlight"):
+        rec = f"Vulnerable to {vulnerable_attacks}/{total_attacks} attacks even with spotlighting — review the system prompt."
     else:
-        rec = "Vulnerable — spotlighting alone is insufficient; review the system prompt."
-    return {"asr": asr, "asr_with_spotlight": asr_spotlight, "vulnerable": asr > 0, "recommendation": rec, "trials": n}
+        rec = f"Vulnerable to {vulnerable_attacks}/{total_attacks} attacks — enable spotlighting and PII egress filter."
+
+    return {
+        "asr": overall_asr,
+        "vulnerable": vulnerable_attacks > 0,
+        "vulnerable_count": vulnerable_attacks,
+        "total_attacks": total_attacks,
+        "recommendation": rec,
+        "attacks": results,
+        "trials_per_attack": n,
+        "profile": profile.to_dict(),
+    }
 
 
 def generate_eval_questions(model: str, kb_text: str, n: int = 5) -> list[str]:
@@ -130,22 +202,81 @@ def generate_eval_questions(model: str, kb_text: str, n: int = 5) -> list[str]:
     return json.loads(match.group(0)) if match else []
 
 
-def run_playground_eval(dsn: str, cfg: AgentConfig) -> dict:
-    """Generate questions from the agent's KB, run it, judge groundedness."""
-    from sentinel.evals.checks import eval_groundedness
+def run_playground_eval(dsn: str, cfg: AgentConfig, trace_store=None, progress=None) -> dict:
+    """Generate questions from the agent's KB, run enabled eval checks."""
+    from sentinel.evals.checks import eval_groundedness, eval_policy, eval_refusal
     from sentinel.evals.judge import llm_judge
 
+    def _step(label, detail=None):
+        if progress:
+            idx = progress.add_step(label, detail)
+            progress.start(idx)
+            return idx
+        return None
+
+    def _done(idx, detail=None):
+        if progress and idx is not None:
+            progress.done(idx, detail)
+
+    profile = cfg.eval_profile
+    s = _step("Loading knowledge base…")
     retriever = _retriever(dsn)
     kb_text = "\n\n".join(d.content for d in retriever.documents(cfg.id))
+    _done(s)
+
+    s = _step("Initializing agent…")
     agent = build_playground_agent(dsn, cfg)
-    questions = generate_eval_questions(cfg.model, kb_text)
-    judge = lambda c, q, a, ctx: llm_judge(c, q, a, ctx)  # noqa: E731
+    _done(s)
+
+    s = _step(f"Generating {profile.questions_per_eval} eval questions from KB…")
+    questions = generate_eval_questions(cfg.model, kb_text, n=profile.questions_per_eval)
+    _done(s, f"{len(questions)} questions generated")
+
+    judge_model = profile.judge_model
+    judge = lambda c, q, a, ctx: llm_judge(c, q, a, ctx, model=judge_model)  # noqa: E731
+
+    check_fns = {}
+    if profile.checks.get("groundedness"):
+        check_fns["groundedness"] = lambda trace: eval_groundedness(trace, judge)
+    if profile.checks.get("policy"):
+        check_fns["policy"] = lambda trace: eval_policy(trace, judge)
+    if profile.checks.get("refusal"):
+        check_fns["refusal"] = lambda trace: eval_refusal(trace, False, judge)
+
+    enabled_checks = ", ".join(check_fns.keys()) or "none"
 
     cases = []
-    for q in questions:
+    check_results: dict[str, dict] = {}
+    for qi, q in enumerate(questions):
+        s = _step(f"Evaluating question {qi + 1}/{len(questions)}", q[:80])
+
         trace = agent.run(q).trace
-        verdict = eval_groundedness(trace, judge)
-        cases.append({"question": q, "passed": verdict.passed, "reason": verdict.reason})
-    passed = sum(c["passed"] for c in cases)
-    return {"groundedness": {"pass": passed, "total": len(cases)}, "cases": cases}
+        trace.agent_id = cfg.id
+        trace.kind = "eval"
+        if trace_store is not None:
+            trace_store.save(trace)
+        row: dict = {"question": q, "checks": {}}
+        for name, fn in check_fns.items():
+            verdict = fn(trace)
+            row["checks"][name] = {"passed": verdict.passed, "reason": verdict.reason}
+            agg = check_results.setdefault(name, {"pass": 0, "total": 0})
+            agg["total"] += 1
+            if verdict.passed:
+                agg["pass"] += 1
+        row["passed"] = all(c["passed"] for c in row["checks"].values())
+        cases.append(row)
+        verdict_str = "pass" if row["passed"] else "fail"
+        _done(s, f"{verdict_str} — checked: {enabled_checks}")
+
+    s = _step("Aggregating results…")
+    total_pass = sum(1 for c in cases if c["passed"])
+    groundedness = check_results.get("groundedness", {"pass": total_pass, "total": len(cases)})
+    _done(s, f"{total_pass}/{len(cases)} passed")
+
+    return {
+        "groundedness": groundedness,
+        "checks": check_results,
+        "cases": cases,
+        "profile": profile.to_dict(),
+    }
 

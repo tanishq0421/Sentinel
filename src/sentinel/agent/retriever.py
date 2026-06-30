@@ -98,6 +98,13 @@ class HybridRetriever:
             ).fetchall()
         return [Document(id=r[0], content=r[1]) for r in rows]
 
+    def delete_document(self, doc_id: str) -> bool:
+        with psycopg.connect(self.dsn) as conn:
+            result = conn.execute(
+                f"DELETE FROM {self.table} WHERE id = %s", (doc_id,)
+            )
+            return result.rowcount > 0
+
     def search(self, query: str, k: int = 5, agent_id: str = "default") -> list[Document]:
         query_vec = _vector_literal(self.embed_fn(query))
         pool = max(k * 4, 10)
