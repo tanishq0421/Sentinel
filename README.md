@@ -1,9 +1,9 @@
 # Sentinel — Eval & Red-Team Harness for an Agentic Support Agent
 
-**Sentinel answers two questions about an LLM customer-support agent — *does it
-work well?* and *can it be made to misbehave?* — with measured, reproducible
-evidence.** The support agent is the substrate; the **eval + red-team framework
-is the product**.
+**Sentinel is a playground for shipping LLM agents safely: configure an agent
+(system prompt + knowledge base + guardrails), then *evaluate* it and *red-team*
+it to find vulnerabilities and missing guardrails — with measured, reproducible
+evidence.** A built-in Acme support agent is the worked example.
 
 > Built test-first (TDD), verified against live services at every step.
 
@@ -98,8 +98,14 @@ cd dashboard && npm install && npm run dev          # dashboard
 
 ## Using the dashboard
 
-- **Overview** — the four findings (eval pass rates + taxonomy, cross-model ASR,
-  guardrail before/after, MART curve).
+- **Playground** — **create an agent** (name + system prompt + paste a knowledge
+  base + guardrail toggles), then open it and **run eval** (auto-generates
+  groundedness questions from *its* KB and scores them) or **run red-team** (a
+  generic canary injection that reports attack-success-rate and recommends a
+  guardrail if it lands). This is the core product loop: *configure → evaluate →
+  red-team → vulnerability + missing-guardrail report.*
+- **Overview** — the built-in Acme case study: four findings (eval pass rates +
+  taxonomy, cross-model ASR, guardrail before/after, MART curve).
 - **Run a job** (top of Overview) — **conduct an agent eval or a red-team
   campaign right from the UI**: click *run eval suite* (regenerates traces and
   scores them) or *run red-team · <model>* (runs the injection campaign). Jobs
