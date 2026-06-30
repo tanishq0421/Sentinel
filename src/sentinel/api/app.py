@@ -36,8 +36,38 @@ class AgentIn(BaseModel):
     guardrails: dict | None = None
 
 
+class AgentUpdateIn(BaseModel):
+    name: str | None = None
+    system_prompt: str | None = None
+    model: str | None = None
+    guardrails: dict | None = None
+
+
 class KbIn(BaseModel):
     text: str
+
+
+class AttackRunIn(BaseModel):
+    attack_ids: list[str] | None = None
+    trials: int = 3
+
+
+class EvalProfileIn(BaseModel):
+    checks: dict[str, bool] | None = None
+    questions_per_eval: int | None = None
+    judge_model: str | None = None
+
+
+class RedTeamProfileIn(BaseModel):
+    categories: dict[str, bool] | None = None
+    attack_ids: list[str] | None = None
+    trials_per_attack: int | None = None
+    attacker_model: str | None = None
+
+
+class ProfileUpdateIn(BaseModel):
+    eval_profile: EvalProfileIn | None = None
+    redteam_profile: RedTeamProfileIn | None = None
 
 
 def create_app(
@@ -48,6 +78,9 @@ def create_app(
     agent_store=None,
     ingest_fn=None,
     run_store=None,
+    kb_list_fn=None,
+    kb_delete_fn=None,
+    trace_list_by_agent_fn=None,
 ) -> FastAPI:
     app = FastAPI(title="Sentinel API")
     app.add_middleware(
@@ -60,11 +93,19 @@ def create_app(
 
     def _run_summary(run) -> str:
         if run.kind == "eval":
+            checks = run.result.get("checks", {})
+            if checks:
+                parts = [f"{name} {v.get('pass', 0)}/{v.get('total', 0)}" for name, v in checks.items()]
+                return " · ".join(parts)
             g = run.result.get("groundedness", {})
             if g:
                 return f"{g.get('pass', 0)}/{g.get('total', 0)} grounded"
         elif run.kind == "redteam":
             asr = run.result.get("asr")
+            vuln = run.result.get("vulnerable_count")
+            total = run.result.get("total_attacks")
+            if asr is not None and vuln is not None:
+                return f"ASR {round(asr * 100)}% · {vuln}/{total} vulnerable"
             if asr is not None:
                 return f"ASR {round(asr * 100)}% — {'vulnerable' if run.result.get('vulnerable') else 'robust'}"
         return run.kind
@@ -134,11 +175,107 @@ def create_app(
             raise HTTPException(status_code=404, detail="agent not found")
         return cfg.to_dict()
 
+    @app.put("/api/agents/{agent_id}")
+    def update_agent(agent_id: str, body: AgentUpdateIn) -> dict:
+        if agent_store is None:
+            raise HTTPException(status_code=503, detail="agent store not configured")
+        cfg = agent_store.get(agent_id)
+        if cfg is None:
+            raise HTTPException(status_code=404, detail="agent not found")
+        updates = {}
+        if body.name is not None:
+            updates["name"] = body.name
+        if body.system_prompt is not None:
+            updates["system_prompt"] = body.system_prompt
+        if body.model is not None:
+            updates["model"] = body.model
+        if body.guardrails is not None:
+            updates["guardrails"] = body.guardrails
+        if updates:
+            agent_store.update(agent_id, **updates)
+        return agent_store.get(agent_id).to_dict()
+
+    @app.put("/api/agents/{agent_id}/profiles")
+    def update_profiles(agent_id: str, body: ProfileUpdateIn) -> dict:
+        if agent_store is None:
+            raise HTTPException(status_code=503, detail="agent store not configured")
+        cfg = agent_store.get(agent_id)
+        if cfg is None:
+            raise HTTPException(status_code=404, detail="agent not found")
+        updates = {}
+        if body.eval_profile:
+            ep = cfg.eval_profile
+            if body.eval_profile.checks is not None:
+                ep.checks.update(body.eval_profile.checks)
+            if body.eval_profile.questions_per_eval is not None:
+                ep.questions_per_eval = body.eval_profile.questions_per_eval
+            if body.eval_profile.judge_model is not None:
+                ep.judge_model = body.eval_profile.judge_model or None
+            updates["eval_profile"] = ep.to_dict()
+        if body.redteam_profile:
+            rp = cfg.redteam_profile
+            if body.redteam_profile.categories is not None:
+                rp.categories.update(body.redteam_profile.categories)
+            if body.redteam_profile.attack_ids is not None:
+                rp.attack_ids = body.redteam_profile.attack_ids
+            if body.redteam_profile.trials_per_attack is not None:
+                rp.trials_per_attack = body.redteam_profile.trials_per_attack
+            if body.redteam_profile.attacker_model is not None:
+                rp.attacker_model = body.redteam_profile.attacker_model or None
+            updates["redteam_profile"] = rp.to_dict()
+        if updates:
+            agent_store.update(agent_id, **updates)
+        updated = agent_store.get(agent_id)
+        return updated.to_dict()
+
     @app.post("/api/agents/{agent_id}/kb")
     def ingest_agent_kb(agent_id: str, body: KbIn) -> dict:
         if ingest_fn is None:
             raise HTTPException(status_code=503, detail="ingest not configured")
         return {"chunks": ingest_fn(agent_id, body.text)}
+
+    @app.get("/api/agents/{agent_id}/kb")
+    def list_agent_kb(agent_id: str) -> dict:
+        if kb_list_fn is None:
+            raise HTTPException(status_code=503, detail="kb listing not configured")
+        docs = kb_list_fn(agent_id)
+        return {"chunks": [{"id": d.id, "content": d.content} for d in docs]}
+
+    @app.delete("/api/agents/{agent_id}/kb/{chunk_id}")
+    def delete_agent_kb_chunk(agent_id: str, chunk_id: str) -> dict:
+        if kb_delete_fn is None:
+            raise HTTPException(status_code=503, detail="kb delete not configured")
+        deleted = kb_delete_fn(chunk_id)
+        if not deleted:
+            raise HTTPException(status_code=404, detail="chunk not found")
+        return {"deleted": True}
+
+    @app.get("/api/agents/{agent_id}/traces")
+    def list_agent_traces(agent_id: str) -> list[dict]:
+        if trace_list_by_agent_fn is None:
+            raise HTTPException(status_code=503, detail="agent trace listing not configured")
+        traces = trace_list_by_agent_fn(agent_id)
+        return [
+            {
+                "id": t.id,
+                "name": t.name,
+                "input": t.input,
+                "output": t.output,
+                "duration_ms": t.duration_ms,
+                "span_count": len(t.spans),
+                "kind": t.kind,
+            }
+            for t in traces
+        ]
+
+    @app.get("/api/runs/{run_id}/detail")
+    def get_run_detail(run_id: str) -> dict:
+        if run_store is None:
+            raise HTTPException(status_code=503, detail="run store not configured")
+        run = run_store.get(run_id)
+        if run is None:
+            raise HTTPException(status_code=404, detail="run not found")
+        return run.to_dict()
 
     @app.get("/api/agents/{agent_id}/runs")
     def list_agent_runs(agent_id: str) -> list[dict]:
@@ -219,6 +356,46 @@ def create_app(
             "results": results,
         }
 
+    @app.get("/api/models")
+    def list_models() -> dict:
+        from sentinel.core.llm import DEFAULT_AGENT_MODEL, DEFAULT_ATTACKER_MODEL, DEFAULT_JUDGE_MODEL
+        return {
+            "models": [
+                {"id": "anthropic/claude-haiku-4-5-20251001", "provider": "anthropic", "label": "Claude Haiku 4.5"},
+                {"id": "anthropic/claude-sonnet-4-20250514", "provider": "anthropic", "label": "Claude Sonnet 4"},
+                {"id": "openai/gpt-4o-mini", "provider": "openai", "label": "GPT-4o Mini"},
+                {"id": "openai/gpt-4o", "provider": "openai", "label": "GPT-4o"},
+                {"id": "openai/gpt-4.1-mini", "provider": "openai", "label": "GPT-4.1 Mini"},
+                {"id": "openai/gpt-4.1", "provider": "openai", "label": "GPT-4.1"},
+            ],
+            "defaults": {
+                "agent": DEFAULT_AGENT_MODEL,
+                "judge": DEFAULT_JUDGE_MODEL,
+                "attacker": DEFAULT_ATTACKER_MODEL,
+            },
+        }
+
+    @app.get("/api/attacks")
+    def list_attacks() -> dict:
+        from sentinel.redteam.catalog import ATTACK_CATALOG, attacks_by_category
+        return {
+            "attacks": [
+                {"id": a.id, "name": a.name, "category": a.category,
+                 "success_type": a.success_type, "description": a.description}
+                for a in ATTACK_CATALOG
+            ],
+            "categories": {k: [a.id for a in v] for k, v in attacks_by_category().items()},
+        }
+
+    @app.post("/api/agents/{agent_id}/attack")
+    def run_attack(agent_id: str, body: AttackRunIn) -> dict:
+        if job_queue is None:
+            raise HTTPException(status_code=503, detail="job queue not configured")
+        kwargs: dict = {"agent_id": agent_id}
+        if body.attack_ids:
+            kwargs["attack_ids"] = body.attack_ids
+        return {"job_id": job_queue.enqueue("pg_redteam", **kwargs)}
+
     @app.post("/api/runs")
     def create_run(run: RunIn) -> dict:
         if job_queue is None:
@@ -234,6 +411,12 @@ def create_app(
     def get_run(job_id: str) -> dict:
         if job_queue is None:
             raise HTTPException(status_code=503, detail="job queue not configured")
-        return job_queue.status(job_id)
+        data = job_queue.status(job_id)
+        try:
+            from sentinel.core.progress import get_progress
+            data["steps"] = get_progress(job_id)
+        except Exception:
+            data["steps"] = []
+        return data
 
     return app

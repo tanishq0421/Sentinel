@@ -77,6 +77,19 @@ def test_agents_crud_and_kb_ingest(tmp_path):
     assert client.post(f"/api/agents/{created['id']}/kb", json={"text": "one two three"}).json()["chunks"] == 3
 
 
+def test_attacks_catalog_endpoint(tmp_path):
+    client, _ = build(tmp_path)
+    resp = client.get("/api/attacks")
+    assert resp.status_code == 200
+    data = resp.json()
+    assert len(data["attacks"]) >= 6
+    assert "prompt_injection" in data["categories"]
+    for a in data["attacks"]:
+        assert "id" in a
+        assert "name" in a
+        assert "category" in a
+
+
 def test_runs_endpoint_enqueues_and_reports(tmp_path):
     from sentinel.api.app import create_app
     from sentinel.core.jobs import InMemoryJobQueue

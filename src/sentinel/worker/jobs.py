@@ -49,28 +49,42 @@ def run_redteam_suite_job() -> dict:
     return run_redteam_suite(os.environ["DATABASE_URL"])
 
 
+def _progress_reporter():
+    from rq import get_current_job
+
+    from sentinel.core.progress import ProgressReporter
+    job = get_current_job()
+    return ProgressReporter(job.id) if job else None
+
+
 def run_pg_eval_job(agent_id: str) -> dict:
-    """Eval a playground-configured agent; persist result to agent_runs."""
+    """Eval a playground-configured agent; persist result + traces to agent_runs."""
     from sentinel.agents.runs import PostgresAgentRunStore
     from sentinel.agents.store import PostgresAgentStore
+    from sentinel.core.pg_store import PostgresTraceStore
     from sentinel.playground.engine import run_playground_eval
 
     dsn = os.environ["DATABASE_URL"]
     cfg = PostgresAgentStore(dsn).get(agent_id)
-    result = run_playground_eval(dsn, cfg)
+    trace_store = PostgresTraceStore(dsn)
+    progress = _progress_reporter()
+    result = run_playground_eval(dsn, cfg, trace_store=trace_store, progress=progress)
     PostgresAgentRunStore(dsn).create(agent_id=agent_id, kind="eval", result=result)
     return result
 
 
-def run_pg_redteam_job(agent_id: str) -> dict:
-    """Red-team a playground-configured agent; persist result to agent_runs."""
+def run_pg_redteam_job(agent_id: str, attack_ids: list[str] | None = None) -> dict:
+    """Red-team a playground-configured agent; persist result + traces to agent_runs."""
     from sentinel.agents.runs import PostgresAgentRunStore
     from sentinel.agents.store import PostgresAgentStore
+    from sentinel.core.pg_store import PostgresTraceStore
     from sentinel.playground.engine import run_playground_redteam
 
     dsn = os.environ["DATABASE_URL"]
     cfg = PostgresAgentStore(dsn).get(agent_id)
-    result = run_playground_redteam(dsn, cfg)
+    trace_store = PostgresTraceStore(dsn)
+    progress = _progress_reporter()
+    result = run_playground_redteam(dsn, cfg, attack_ids=attack_ids, trace_store=trace_store, progress=progress)
     PostgresAgentRunStore(dsn).create(agent_id=agent_id, kind="redteam", result=result)
     return result
 

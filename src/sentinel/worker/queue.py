@@ -35,4 +35,11 @@ class RQJobQueue:
             return {"id": job_id, "status": "unknown"}
         status = job.get_status()
         status = status.value if hasattr(status, "value") else str(status)
-        return {"id": job_id, "status": status, "result": job.result}
+        data: dict = {"id": job_id, "status": status, "result": job.result}
+        if status == "failed" and job.exc_info:
+            raw = job.exc_info
+            if isinstance(raw, bytes):
+                raw = raw.decode("utf-8", errors="replace")
+            lines = str(raw).strip().splitlines()
+            data["error"] = lines[-1] if lines else "unknown error"
+        return data
