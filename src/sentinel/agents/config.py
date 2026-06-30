@@ -25,6 +25,7 @@ class AgentConfig:
     model: str = DEFAULT_AGENT_MODEL
     guardrails: dict = field(default_factory=_default_guardrails)
     id: str = ""
+    is_example: bool = False
 
     def __post_init__(self) -> None:
         if not self.id:
@@ -37,6 +38,7 @@ class AgentConfig:
             "system_prompt": self.system_prompt,
             "model": self.model,
             "guardrails": self.guardrails,
+            "is_example": self.is_example,
         }
 
 

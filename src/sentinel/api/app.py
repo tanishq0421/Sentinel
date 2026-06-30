@@ -47,6 +47,7 @@ def create_app(
     job_queue: JobQueue | None = None,
     agent_store=None,
     ingest_fn=None,
+    run_store=None,
 ) -> FastAPI:
     app = FastAPI(title="Sentinel API")
     app.add_middleware(
@@ -127,6 +128,35 @@ def create_app(
         if ingest_fn is None:
             raise HTTPException(status_code=503, detail="ingest not configured")
         return {"chunks": ingest_fn(agent_id, body.text)}
+
+    @app.get("/api/agents/{agent_id}/runs")
+    def list_agent_runs(agent_id: str) -> list[dict]:
+        if run_store is None:
+            raise HTTPException(status_code=503, detail="run store not configured")
+        return [r.to_dict() for r in run_store.list(agent_id=agent_id)]
+
+    @app.get("/api/agents/{agent_id}/runs/latest")
+    def latest_agent_run(agent_id: str, kind: str = "eval") -> dict:
+        if run_store is None:
+            raise HTTPException(status_code=503, detail="run store not configured")
+        run = run_store.latest(agent_id=agent_id, kind=kind)
+        if run is None:
+            raise HTTPException(status_code=404, detail="no runs yet")
+        return run.to_dict()
+
+    @app.get("/api/compare")
+    def compare_agents(kind: str = "eval") -> dict:
+        """Return latest run results for all agents side-by-side."""
+        if agent_store is None or run_store is None:
+            raise HTTPException(status_code=503, detail="stores not configured")
+        agents = agent_store.list()
+        agent_ids = [a.id for a in agents]
+        results = run_store.compare(agent_ids=agent_ids, kind=kind)
+        return {
+            "kind": kind,
+            "agents": [a.to_dict() for a in agents],
+            "results": results,
+        }
 
     @app.post("/api/runs")
     def create_run(run: RunIn) -> dict:

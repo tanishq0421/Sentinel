@@ -9,6 +9,7 @@ import os
 
 from dotenv import load_dotenv
 
+from sentinel.agents.runs import PostgresAgentRunStore
 from sentinel.agents.store import PostgresAgentStore
 from sentinel.api.app import create_app
 from sentinel.core.pg_store import PostgresAnnotationStore, PostgresTraceStore
@@ -26,4 +27,5 @@ app = create_app(
     job_queue=RQJobQueue(),
     agent_store=PostgresAgentStore(_DSN),
     ingest_fn=lambda agent_id, text: ingest_kb(_DSN, agent_id, text),
+    run_store=PostgresAgentRunStore(_DSN),
 )

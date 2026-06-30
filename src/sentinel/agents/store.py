@@ -23,9 +23,23 @@ class PostgresAgentStore:
                     system_prompt=cfg.system_prompt,
                     model=cfg.model,
                     guardrails=cfg.guardrails,
+                    is_example=str(cfg.is_example).lower(),
                 )
             )
         return cfg
+
+    def list_examples(self) -> list[AgentConfig]:
+        with self._session() as session:
+            rows = (
+                session.execute(
+                    select(AgentRow)
+                    .where(AgentRow.is_example == "true")
+                    .order_by(AgentRow.created_at)
+                )
+                .scalars()
+                .all()
+            )
+            return [self._to_cfg(r) for r in rows]
 
     def get(self, agent_id: str) -> AgentConfig | None:
         with self._session() as session:
@@ -59,4 +73,5 @@ class PostgresAgentStore:
             system_prompt=row.system_prompt,
             model=row.model,
             guardrails=row.guardrails or {},
+            is_example=(row.is_example == "true"),
         )

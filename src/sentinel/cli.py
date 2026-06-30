@@ -61,6 +61,13 @@ def cmd_redteam(args) -> None:
     print(json.dumps(run_redteam_job(model=args.model), indent=2))
 
 
+def cmd_seed_examples(_args) -> None:
+    from sentinel.examples.seed import seed_examples
+
+    ids = seed_examples(_dsn())
+    print(f"done — {len(ids)} new example agent(s) seeded")
+
+
 def cmd_redteam_suite(_args) -> None:
     from sentinel.redteam.suite import run_redteam_suite
 
@@ -74,6 +81,7 @@ def main() -> None:
     sub = parser.add_subparsers(dest="cmd", required=True)
 
     sub.add_parser("seed", help="embed + index the KB").set_defaults(func=cmd_seed)
+    sub.add_parser("seed-examples", help="seed 3 public example agents").set_defaults(func=cmd_seed_examples)
 
     ask = sub.add_parser("ask", help="run one question through the agent")
     ask.add_argument("question")

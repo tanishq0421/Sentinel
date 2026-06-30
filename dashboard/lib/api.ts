@@ -33,6 +33,7 @@ export type Agent = {
   system_prompt: string;
   model: string;
   guardrails: { spotlight: boolean; pii_egress: boolean };
+  is_example?: boolean;
 };
 
 export const api = {
@@ -75,6 +76,11 @@ export const api = {
     if (!res.ok) throw new Error("create agent failed");
     return res.json() as Promise<Agent>;
   },
+  get: <T>(path: string) => get<T>(path),
+  agentRuns: (agentId: string) => get<unknown[]>(`/api/agents/${agentId}/runs`),
+  latestRun: (agentId: string, kind: string) =>
+    get<{ result: unknown }>(`/api/agents/${agentId}/runs/latest?kind=${kind}`),
+  compare: (kind = "eval") => get<{ agents: Agent[]; results: Record<string, unknown> }>(`/api/compare?kind=${kind}`),
   ingestKb: async (agentId: string, text: string) => {
     const res = await fetch(`${BASE}/api/agents/${agentId}/kb`, {
       method: "POST",

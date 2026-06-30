@@ -11,6 +11,9 @@ from sqlalchemy.orm import Mapped, mapped_column
 
 from sentinel.core.db import Base
 
+# Import AgentRunRow so Alembic autogenerate sees it
+from sentinel.agents.runs import AgentRunRow as AgentRunRow  # noqa: F401
+
 
 class TraceRow(Base):
     __tablename__ = "traces"
@@ -36,6 +39,7 @@ class Agent(Base):
     system_prompt: Mapped[str] = mapped_column(Text, nullable=False)
     model: Mapped[str] = mapped_column(String, nullable=False)
     guardrails: Mapped[Any] = mapped_column(JSONB, nullable=False, default=dict)
+    is_example: Mapped[bool] = mapped_column(String, nullable=False, server_default="false")
     created_at: Mapped[datetime] = mapped_column(
         DateTime(timezone=True), server_default=func.now(), nullable=False
     )
