@@ -24,6 +24,8 @@ class TraceRow(Base):
     output: Mapped[Any] = mapped_column(JSONB, nullable=True)
     duration_ms: Mapped[float | None] = mapped_column(Float, nullable=True)
     spans: Mapped[Any] = mapped_column(JSONB, nullable=False, default=list)
+    agent_id: Mapped[str | None] = mapped_column(String, index=True, nullable=True)
+    kind: Mapped[str | None] = mapped_column(String, nullable=True)
     created_at: Mapped[datetime] = mapped_column(
         DateTime(timezone=True), server_default=func.now(), nullable=False
     )
@@ -39,6 +41,8 @@ class Agent(Base):
     system_prompt: Mapped[str] = mapped_column(Text, nullable=False)
     model: Mapped[str] = mapped_column(String, nullable=False)
     guardrails: Mapped[Any] = mapped_column(JSONB, nullable=False, default=dict)
+    eval_profile: Mapped[Any] = mapped_column(JSONB, nullable=True)
+    redteam_profile: Mapped[Any] = mapped_column(JSONB, nullable=True)
     is_example: Mapped[bool] = mapped_column(String, nullable=False, server_default="false")
     created_at: Mapped[datetime] = mapped_column(
         DateTime(timezone=True), server_default=func.now(), nullable=False

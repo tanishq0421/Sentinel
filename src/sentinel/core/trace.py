@@ -51,19 +51,21 @@ class Span:
 
 
 class Trace:
-    def __init__(self, name: str, input: Any = None) -> None:
+    def __init__(self, name: str, input: Any = None, agent_id: str | None = None, kind: str | None = None) -> None:
         self.id = uuid.uuid4().hex
         self.name = name
         self.input = input
         self.output: Any = None
         self.duration_ms: float | None = None
         self.spans: list[Span] = []
+        self.agent_id = agent_id
+        self.kind = kind
 
     def set_output(self, output: Any) -> None:
         self.output = output
 
     def to_dict(self) -> dict[str, Any]:
-        return {
+        d: dict[str, Any] = {
             "id": self.id,
             "name": self.name,
             "input": self.input,
@@ -71,10 +73,16 @@ class Trace:
             "duration_ms": self.duration_ms,
             "spans": [s.to_dict() for s in self.spans],
         }
+        if self.agent_id is not None:
+            d["agent_id"] = self.agent_id
+        if self.kind is not None:
+            d["kind"] = self.kind
+        return d
 
     @classmethod
     def from_dict(cls, d: dict[str, Any]) -> "Trace":
-        trace = cls(name=d["name"], input=d.get("input"))
+        trace = cls(name=d["name"], input=d.get("input"),
+                    agent_id=d.get("agent_id"), kind=d.get("kind"))
         trace.id = d["id"]
         trace.output = d.get("output")
         trace.duration_ms = d.get("duration_ms")

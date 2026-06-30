@@ -28,6 +28,8 @@ class PostgresTraceStore:
                     output=trace.output,
                     duration_ms=trace.duration_ms,
                     spans=[s.to_dict() for s in trace.spans],
+                    agent_id=trace.agent_id,
+                    kind=trace.kind,
                 )
             )
         return trace.id
@@ -46,6 +48,19 @@ class PostgresTraceStore:
             )
             return [self._to_trace(r) for r in rows]
 
+    def list_by_agent(self, agent_id: str) -> list[Trace]:
+        with self._session() as session:
+            rows = (
+                session.execute(
+                    select(TraceRow)
+                    .where(TraceRow.agent_id == agent_id)
+                    .order_by(TraceRow.created_at.desc())
+                )
+                .scalars()
+                .all()
+            )
+            return [self._to_trace(r) for r in rows]
+
     @staticmethod
     def _to_trace(row: TraceRow) -> Trace:
         return Trace.from_dict(
@@ -56,6 +71,8 @@ class PostgresTraceStore:
                 "output": row.output,
                 "duration_ms": row.duration_ms,
                 "spans": row.spans or [],
+                "agent_id": row.agent_id,
+                "kind": row.kind,
             }
         )
 
